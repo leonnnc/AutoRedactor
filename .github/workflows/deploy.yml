@@ -34,5 +34,5 @@ jobs:
           port: 21
           protocol: ftps
           local-dir: ./dist/
-          server-dir: /public_html/autoredactor/
+          server-dir: /autoredactor/
           dangerous-clean-slate: false
