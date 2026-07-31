@@ -6,12 +6,13 @@ export const getViewportDimensions = (mode: ViewportMode, custom?: CustomCanvasS
     return { width: custom.width, height: custom.height, scale: 1 };
   }
   switch (mode) {
-    case 'desktop':
-      return { width: 1920, height: 1080, scale: 0.5 };
     case 'tablet':
       return { width: 1024, height: 768, scale: 0.703125 };
     case 'mobile':
       return { width: 1080, height: 1920, scale: 0.28125 };
+    case 'desktop':
+    default:
+      return { width: 1920, height: 1080, scale: 0.5 };
   }
 };
 

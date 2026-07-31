@@ -10,10 +10,6 @@ interface SlidePreviewProps {
   canvasRef: React.RefObject<HTMLDivElement | null>;
 }
 
-/**
- * Preview-only scale: custom mode uses the same logic as the other modes
- * but fits within the available canvas area (~960 px wide).
- */
 const getPreviewDimensions = (mode: ViewportMode, custom?: CustomCanvasSize) => {
   if (mode === 'custom' && custom) {
     const maxPreviewW = 960;
