@@ -1,14 +1,21 @@
 import React from 'react';
-import type { Slide, SlideStyle, ViewportMode } from '../types';
+import type { Slide, SlideStyle, ViewportMode, CustomCanvasSize } from '../types';
 
 interface SlidePreviewProps {
   slide: Slide | null;
   globalStyle: SlideStyle;
   viewportMode: ViewportMode;
+  customCanvas?: CustomCanvasSize;
   canvasRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export const getViewportDimensions = (mode: ViewportMode) => {
+export const getViewportDimensions = (mode: ViewportMode, custom?: CustomCanvasSize) => {
+  if (mode === 'custom' && custom) {
+    // Scale to fit within ~960px wide in preview
+    const maxPreviewW = 960;
+    const scale = Math.min(1, maxPreviewW / custom.width);
+    return { width: custom.width, height: custom.height, scale };
+  }
   switch (mode) {
     case 'desktop':
       return { width: 1920, height: 1080, scale: 0.5 };
@@ -23,6 +30,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
   slide,
   globalStyle,
   viewportMode,
+  customCanvas,
   canvasRef,
 }) => {
   if (!slide) {
@@ -49,7 +57,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
     style.paddingX = globalStyle.paddingX;
   }
 
-  const dimensions = getViewportDimensions(viewportMode);
+  const dimensions = getViewportDimensions(viewportMode, customCanvas);
   
   // Outer wrapper container size
   const wrapperStyle: React.CSSProperties = {

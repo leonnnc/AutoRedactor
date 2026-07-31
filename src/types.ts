@@ -1,3 +1,6 @@
+// Bible version type - matches versions available in /public/bibles/
+export type BibleVersion = 'rvr1960' | 'nvi' | 'tla' | 'ntv' | 'lbla' | 'dhh' | 'nbla';
+
 export interface SlideStyle {
   fontSize: number; // in pixels (base desktop size, scaled in preview)
   lineHeight: number; // multiplier, e.g. 1.4
@@ -36,7 +39,12 @@ export interface Slide {
   customStyle?: Partial<SlideStyle>; // optional style override
 }
 
-export type ViewportMode = 'desktop' | 'tablet' | 'mobile';
+export type ViewportMode = 'desktop' | 'tablet' | 'mobile' | 'custom';
+
+export interface CustomCanvasSize {
+  width: number;
+  height: number;
+}
 
 export interface BibleChapterItem {
   type: string; // "verse" | "heading1" | etc.

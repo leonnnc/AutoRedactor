@@ -1,45 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import type { Slide, BibleData, BibleBook, BibleChapter } from '../types';
-import { 
-  BookOpen, 
-  FileText, 
-  Plus, 
-  Trash2, 
-  Search, 
-  Sparkles, 
-  ChevronUp, 
-  ChevronDown 
-} from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import type { BibleData, BibleVersion } from '../types';
+import { BookOpen, FileText, Search, Sparkles, Plus, CheckCircle, AlertCircle } from 'lucide-react';
+import { parseBibleRef, resolveBookName, norm } from '../utils/bibleAbbreviations';
 
 interface SermonInputPanelProps {
   sermonText: string;
   onChangeSermonText: (text: string) => void;
-  slides: Slide[];
-  activeSlideId: string | null;
-  onSelectSlide: (id: string) => void;
-  onAddSlide: () => void;
-  onDeleteSlide: (id: string) => void;
-  onReorderSlides: (index1: number, index2: number) => void;
   onGenerateSlides: () => void;
   onClearAll: () => void;
-  
-  // Bible states passed from App
-  bibleVersion: 'rvr1960' | 'nvi' | 'tla' | 'ntv' | 'lbla' | 'dhh' | 'nbla';
-  onChangeBibleVersion: (version: 'rvr1960' | 'nvi' | 'tla' | 'ntv' | 'lbla' | 'dhh' | 'nbla') => void;
+  bibleVersion: BibleVersion;
+  onChangeBibleVersion: (version: BibleVersion) => void;
   bibleData: BibleData | null;
   bibleLoading: boolean;
   onAddVerseToSlides: (text: string, reference: string) => void;
 }
 
+interface VerseResult {
+  reference: string;
+  text: string;
+  added: boolean;
+}
+
 export const SermonInputPanel: React.FC<SermonInputPanelProps> = ({
   sermonText,
   onChangeSermonText,
-  slides,
-  activeSlideId,
-  onSelectSlide,
-  onAddSlide,
-  onDeleteSlide,
-  onReorderSlides,
   onGenerateSlides,
   onClearAll,
   bibleVersion,
@@ -49,107 +33,77 @@ export const SermonInputPanel: React.FC<SermonInputPanelProps> = ({
   onAddVerseToSlides,
 }) => {
   const [activeTab, setActiveTab] = useState<'sermon' | 'bible'>('sermon');
-  
-  // Bible reference selection states
-  const [selectedBookIndex, setSelectedBookIndex] = useState<number>(0);
-  const [selectedChapterIndex, setSelectedChapterIndex] = useState<number>(0);
-  const [selectedVerseStart, setSelectedVerseStart] = useState<number>(1);
-  const [selectedVerseEnd, setSelectedVerseEnd] = useState<number>(1);
-  
-  // Search keyword state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<{ reference: string; text: string }[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  
-  const currentBook: BibleBook | undefined = bibleData?.books[selectedBookIndex];
-  const actualChapters = currentBook?.chapters.filter(c => c.is_chapter) || [];
-  const currentChapter: BibleChapter | undefined = actualChapters[selectedChapterIndex];
-  
-  // Total chapters in selected book
-  const totalChapters = currentBook?.chapters.filter(c => c.is_chapter).length || 0;
-  
-  // Total verses in selected chapter
-  const versesInChapter = currentChapter?.items.filter(item => item.type === 'verse') || [];
-  const totalVerses = versesInChapter.length || 0;
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<VerseResult[]>([]);
+  const [searchError, setSearchError] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Reset indices when bibleVersion or bibleData changes
+  // Reset when bible version changes
   useEffect(() => {
-    setSelectedBookIndex(0);
-    setSelectedChapterIndex(0);
-    setSelectedVerseStart(1);
-    setSelectedVerseEnd(1);
-    setSearchResults([]);
-    setSearchQuery('');
+    setResults([]);
+    setSearchError('');
+    setQuery('');
   }, [bibleVersion, bibleData]);
 
-  // Reset chapter and verse selections when book changes
-  useEffect(() => {
-    setSelectedChapterIndex(0);
-    setSelectedVerseStart(1);
-    setSelectedVerseEnd(1);
-  }, [selectedBookIndex]);
+  const lookupVerses = (q: string): VerseResult[] | string => {
+    if (!bibleData) return 'La Biblia aún no está cargada.';
 
-  // Reset verse selections when chapter changes
-  useEffect(() => {
-    setSelectedVerseStart(1);
-    setSelectedVerseEnd(1);
-  }, [selectedChapterIndex]);
+    const parsed = parseBibleRef(q);
+    if (!parsed) return 'Formato no reconocido. Intenta: "Juan 3:16", "jn 3 16", "Sal 23:1-3"';
 
-  // Handle Bible Keyword Search
-  const handleKeywordSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!bibleData || searchQuery.trim().length < 3) return;
-    
-    setIsSearching(true);
-    
-    // Run keyword search in a brief timeout to avoid blocking main thread UI update
-    setTimeout(() => {
-      const query = searchQuery.toLowerCase().trim();
-      const results: { reference: string; text: string }[] = [];
-      
-      // Iterate through books, chapters, and verses
-      for (const book of bibleData.books) {
-        const actualChapters = book.chapters.filter(ch => ch.is_chapter);
-        for (let chNum = 1; chNum <= actualChapters.length; chNum++) {
-          const ch = actualChapters[chNum - 1];
-          
-          for (const item of ch.items) {
-            if (item.type !== 'verse') continue;
-            
-            const verseNumbersStr = item.verse_numbers.join('-');
-            const verseText = `${verseNumbersStr} ${item.lines.join(' ')}`;
-            if (verseText.toLowerCase().includes(query)) {
-              const ref = `${book.name} ${chNum}:${verseNumbersStr}`;
-              results.push({ reference: ref, text: verseText });
-              
-              if (results.length >= 60) break; // Limit search results to avoid DOM bloat
-            }
-          }
-          if (results.length >= 60) break;
-        }
-        if (results.length >= 60) break;
-      }
-      
-      setSearchResults(results);
-      setIsSearching(false);
-    }, 50);
+    const bookNames = bibleData.books.map((b) => b.name);
+    const canonicalName = resolveBookName(parsed.bookRaw, bookNames);
+    if (!canonicalName) return `No encontré el libro "${parsed.bookRaw}". Verifica la abreviatura.`;
+
+    const book = bibleData.books.find((b) => norm(b.name) === norm(canonicalName));
+    if (!book) return `Libro "${canonicalName}" no encontrado en esta versión.`;
+
+    const actualChapters = book.chapters.filter((c) => c.is_chapter);
+    const chapter = actualChapters[parsed.chapter - 1];
+    if (!chapter) return `${canonicalName} solo tiene ${actualChapters.length} capítulos.`;
+
+    const found: VerseResult[] = [];
+    for (let v = parsed.verseStart; v <= parsed.verseEnd; v++) {
+      const item = chapter.items.find(
+        (i) => i.type === 'verse' && i.verse_numbers.includes(v),
+      );
+      if (!item) return `El capítulo ${parsed.chapter} de ${canonicalName} no tiene versículo ${v}.`;
+
+      const text = `${v} ${item.lines.join(' ')}`;
+      const ref = `${canonicalName} ${parsed.chapter}:${v} (${bibleVersion.toUpperCase()})`;
+      found.push({ reference: ref, text, added: false });
+    }
+    return found;
   };
 
-  // Get and add a verse by dropdown reference
-  const handleAddReference = () => {
-    if (!currentBook || !currentChapter || !versesInChapter.length) return;
-    
-    const start = Math.min(selectedVerseStart, selectedVerseEnd);
-    const end = Math.max(selectedVerseStart, selectedVerseEnd);
-    
-    for (let v = start; v <= end; v++) {
-      const match = versesInChapter.find(item => item.verse_numbers.includes(v));
-      if (match) {
-        const text = `${v} ${match.lines.join(' ')}`;
-        const reference = `${currentBook.name} ${selectedChapterIndex + 1}:${v} (${bibleVersion.toUpperCase()})`;
-        onAddVerseToSlides(text, reference);
-      }
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!query.trim()) return;
+    setSearchError('');
+
+    const res = lookupVerses(query.trim());
+    if (typeof res === 'string') {
+      setSearchError(res);
+      return;
     }
+    // Accumulate — each new search appends to the list
+    setResults((prev) => [...prev, ...res]);
+    setQuery('');
+    inputRef.current?.focus();
+  };
+
+  const handleAdd = (idx: number) => {
+    const item = results[idx];
+    if (!item || item.added) return;
+    onAddVerseToSlides(item.text, item.reference);
+    setResults((prev) => prev.map((r, i) => (i === idx ? { ...r, added: true } : r)));
+  };
+
+  const handleAddAll = () => {
+    results.forEach((item, idx) => {
+      if (!item.added) onAddVerseToSlides(item.text, item.reference);
+    });
+    setResults((prev) => prev.map((r) => ({ ...r, added: true })));
   };
 
   return (
@@ -160,83 +114,56 @@ export const SermonInputPanel: React.FC<SermonInputPanelProps> = ({
           <Sparkles size={20} style={{ color: 'var(--accent-secondary)' }} />
           AutoRedactor
         </h1>
-        <span 
-          style={{ 
-            fontSize: '10px', 
-            background: 'rgba(255,255,255,0.06)', 
-            padding: '3px 8px', 
-            borderRadius: '12px',
-            color: 'var(--text-muted)'
-          }}
-        >
-          v1.0.0
+        <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', padding: '3px 8px', borderRadius: '12px', color: 'var(--text-muted)' }}>
+          v2.0.0
         </span>
       </div>
 
       <div className="panel-content" style={{ paddingBottom: '10px' }}>
-        {/* Navigation Tabs */}
+        {/* Tabs */}
         <div className="tabs-header">
-          <button 
-            className={`tab-btn ${activeTab === 'sermon' ? 'active' : ''}`}
-            onClick={() => setActiveTab('sermon')}
-          >
+          <button className={`tab-btn ${activeTab === 'sermon' ? 'active' : ''}`} onClick={() => setActiveTab('sermon')}>
             <FileText size={14} />
             Prédica
           </button>
-          <button 
-            className={`tab-btn ${activeTab === 'bible' ? 'active' : ''}`}
-            onClick={() => setActiveTab('bible')}
-          >
+          <button className={`tab-btn ${activeTab === 'bible' ? 'active' : ''}`} onClick={() => setActiveTab('bible')}>
             <BookOpen size={14} />
             Biblia
           </button>
         </div>
 
-        {/* Tab 1: Sermon Input */}
+        {/* ── Tab Prédica ── */}
         {activeTab === 'sermon' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div className="form-group">
               <span className="form-label">Texto de la Prédica</span>
-              <textarea 
+              <textarea
                 className="form-textarea"
                 placeholder="Escribe o pega tu bosquejo o prédica aquí. Separa las diapositivas con una línea en blanco doble o escribe '---' para un salto manual. Ej: Mateo 6:33 se autodetectará."
                 value={sermonText}
                 onChange={(e) => onChangeSermonText(e.target.value)}
-                style={{ minHeight: '180px' }}
+                style={{ minHeight: '400px', flex: 1 }}
               />
             </div>
-            
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button 
-                className="btn btn-primary" 
-                style={{ flex: 1 }}
-                onClick={onGenerateSlides}
-                disabled={sermonText.trim() === ''}
-              >
-                Generar Diapositivas
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={onGenerateSlides} disabled={sermonText.trim() === ''}>
+                Crear Presentación
               </button>
-              <button 
-                className="btn btn-secondary btn-danger"
-                onClick={onClearAll}
-                title="Limpiar Prédica y Diapositivas"
-              >
-                Limpiar Todo
+              <button className="btn btn-secondary btn-danger" onClick={onClearAll} title="Borra el texto y todas las diapositivas">
+                Borrar Todo
               </button>
             </div>
           </div>
         )}
 
-        {/* Tab 2: Bible Search */}
+        {/* ── Tab Biblia ── */}
         {activeTab === 'bible' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {/* Version Select */}
+
+            {/* Version selector */}
             <div className="form-group">
               <span className="form-label">Versión de la Biblia</span>
-              <select 
-                className="form-select"
-                value={bibleVersion}
-                onChange={(e) => onChangeBibleVersion(e.target.value as any)}
-              >
+              <select className="form-select" value={bibleVersion} onChange={(e) => onChangeBibleVersion(e.target.value as BibleVersion)}>
                 <option value="rvr1960">Reina Valera 1960 (RVR1960)</option>
                 <option value="nvi">Nueva Versión Internacional (NVI)</option>
                 <option value="tla">Traducción en Lenguaje Actual (TLA)</option>
@@ -248,237 +175,94 @@ export const SermonInputPanel: React.FC<SermonInputPanelProps> = ({
             </div>
 
             {bibleLoading ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '20px 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '20px 0', justifyContent: 'center' }}>
                 <div className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px' }} />
-                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Cargando versión de la Biblia...</span>
+                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Cargando Biblia...</span>
               </div>
-            ) : bibleData ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {/* Book & Chapter Reference Selectors */}
-                <div className="form-group">
-                  <span className="form-label">Búsqueda por Referencia</span>
-                  
-                  {/* Book Dropdown */}
-                  <select 
-                    className="form-select"
-                    value={selectedBookIndex}
-                    onChange={(e) => setSelectedBookIndex(parseInt(e.target.value))}
-                    style={{ marginBottom: '8px' }}
-                  >
-                    {bibleData.books.map((b, idx) => (
-                      <option key={b.book_usfm} value={idx}>{b.name}</option>
-                    ))}
-                  </select>
-
-                   {/* Chapter and Verses Row with labels */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                      <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600' }}>Capítulo</span>
-                      <select
-                        className="form-select"
-                        value={selectedChapterIndex}
-                        onChange={(e) => setSelectedChapterIndex(parseInt(e.target.value))}
-                        title="Capítulo"
-                      >
-                        {Array.from({ length: totalChapters }).map((_, idx) => (
-                          <option key={idx} value={idx}>Cap. {idx + 1}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                      <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600' }}>Desde (Ver.)</span>
-                      <select
-                        className="form-select"
-                        value={selectedVerseStart}
-                        onChange={(e) => setSelectedVerseStart(parseInt(e.target.value))}
-                        title="Versículo Desde"
-                      >
-                        {Array.from({ length: totalVerses }).map((_, idx) => (
-                          <option key={idx} value={idx + 1}>Ver. {idx + 1}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                      <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600' }}>Hasta (Ver.)</span>
-                      <select
-                        className="form-select"
-                        value={selectedVerseEnd}
-                        onChange={(e) => setSelectedVerseEnd(parseInt(e.target.value))}
-                        title="Versículo Hasta"
-                      >
-                        {Array.from({ length: totalVerses }).map((_, idx) => (
-                          <option key={idx} value={idx + 1}>Ver. {idx + 1}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  
-                  <button 
-                    className="btn btn-secondary" 
-                    style={{ marginTop: '8px', fontSize: '13px' }}
-                    onClick={handleAddReference}
-                  >
-                    <Plus size={14} />
-                    Insertar Referencia
-                  </button>
-                </div>
-
-                {/* Keyword Search Field */}
-                <form className="form-group" onSubmit={handleKeywordSearch} style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '12px' }}>
-                  <span className="form-label">Buscador por Palabras Clave</span>
+            ) : (
+              <>
+                {/* Smart search */}
+                <form className="form-group" onSubmit={handleSearch}>
+                  <span className="form-label">Buscar versículo</span>
                   <div style={{ display: 'flex', gap: '6px' }}>
-                    <input 
-                      type="text" 
+                    <input
+                      ref={inputRef}
+                      type="text"
                       className="form-input"
-                      placeholder="Ej: fortaleza, fe, amor..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="jn 3:16 · juan 3 16 · Sal 23:1-3 · 1co 13:4"
+                      value={query}
+                      onChange={(e) => { setQuery(e.target.value); setSearchError(''); }}
                       style={{ flex: 1 }}
+                      autoComplete="off"
+                      spellCheck={false}
                     />
-                    <button 
-                      type="submit" 
-                      className="btn btn-secondary"
-                      disabled={searchQuery.trim().length < 3 || isSearching}
-                      style={{ padding: '8px 12px' }}
-                    >
+                    <button type="submit" className="btn btn-secondary" disabled={!query.trim()} style={{ padding: '8px 12px' }}>
                       <Search size={15} />
                     </button>
                   </div>
-                  {searchQuery.trim().length > 0 && searchQuery.trim().length < 3 && (
-                    <span style={{ fontSize: '10px', color: 'var(--text-disabled)' }}>Escribe al menos 3 caracteres</span>
+                  <span style={{ fontSize: '10px', color: 'var(--text-disabled)', lineHeight: '1.5' }}>
+                    Acepta: jn 3:16 · juan 3:16 · Juan 3:16 · juan 3 16 · jn 3 16 · jn 3:16-18
+                  </span>
+
+                  {searchError && (
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-start', padding: '8px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', marginTop: '4px' }}>
+                      <AlertCircle size={14} style={{ color: 'var(--danger)', flexShrink: 0, marginTop: '1px' }} />
+                      <span style={{ fontSize: '12px', color: 'var(--danger)' }}>{searchError}</span>
+                    </div>
                   )}
                 </form>
 
-                {/* Search Results list */}
-                {searchResults.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '8px', backgroundColor: 'var(--bg-deep)' }}>
-                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600', padding: '0 4px 4px 4px', borderBottom: '1px dashed var(--border-subtle)' }}>
-                      Resultados ({searchResults.length}):
-                    </div>
-                    {searchResults.map((res, idx) => (
-                      <div key={idx} className="bible-result-item" style={{ padding: '8px', gap: '4px' }}>
-                        <div className="bible-result-header">
-                          <span className="bible-result-ref" style={{ fontSize: '11px' }}>{res.reference}</span>
-                          <button 
-                            className="btn btn-secondary"
-                            style={{ padding: '2px 6px', fontSize: '10px', borderRadius: '4px' }}
-                            onClick={() => onAddVerseToSlides(res.text, `${res.reference} (${bibleVersion.toUpperCase()})`)}
-                          >
-                            + Añadir
+                {/* Results — accumulate */}
+                {results.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span className="form-label" style={{ margin: 0 }}>
+                        {results.filter((r) => !r.added).length} pendiente(s) · {results.filter((r) => r.added).length} añadido(s)
+                      </span>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        {results.some((r) => !r.added) && (
+                          <button className="btn btn-secondary" style={{ fontSize: '11px', padding: '4px 8px' }} onClick={handleAddAll}>
+                            <Plus size={12} /> Añadir todos
                           </button>
-                        </div>
-                        <p className="bible-result-text" style={{ fontSize: '11px', lineHeight: '1.4' }}>{res.text}</p>
+                        )}
+                        <button className="btn btn-secondary" style={{ fontSize: '11px', padding: '4px 8px' }} onClick={() => { setResults([]); setSearchError(''); }}>
+                          Limpiar
+                        </button>
                       </div>
-                    ))}
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '380px', overflowY: 'auto' }}>
+                      {results.map((res, idx) => (
+                        <div
+                          key={idx}
+                          className="bible-result-item"
+                          style={{ padding: '10px 12px', opacity: res.added ? 0.45 : 1, transition: 'opacity 0.2s' }}
+                        >
+                          <div className="bible-result-header">
+                            <span className="bible-result-ref" style={{ fontSize: '11px' }}>{res.reference}</span>
+                            <button
+                              className="btn btn-secondary"
+                              style={{ padding: '3px 8px', fontSize: '10px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                              onClick={() => handleAdd(idx)}
+                              disabled={res.added}
+                            >
+                              {res.added
+                                ? <><CheckCircle size={10} /> Añadido</>
+                                : <><Plus size={10} /> Añadir</>}
+                            </button>
+                          </div>
+                          <p className="bible-result-text" style={{ fontSize: '12px', lineHeight: '1.5', margin: '4px 0 0' }}>
+                            {res.text}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
-                
-                {searchQuery.trim().length >= 3 && searchResults.length === 0 && !isSearching && (
-                  <div style={{ textAlign: 'center', padding: '10px', fontSize: '11px', color: 'var(--text-disabled)' }}>
-                    No se encontraron resultados
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div style={{ color: 'var(--danger)', fontSize: '12px', textAlign: 'center' }}>
-                Error al cargar datos bíblicos.
-              </div>
+              </>
             )}
           </div>
         )}
-      </div>
-
-      {/* Slide List Footer / Slide Management */}
-      <div 
-        style={{ 
-          flex: 1, 
-          display: 'flex', 
-          flexDirection: 'column', 
-          borderTop: '1px solid var(--border-subtle)', 
-          overflow: 'hidden' 
-        }}
-      >
-        <div 
-          style={{ 
-            padding: '12px 20px', 
-            borderBottom: '1px solid var(--border-subtle)', 
-            display: 'flex', 
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            backgroundColor: 'linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.01) 100%)'
-          }}
-        >
-          <span className="form-label" style={{ margin: 0 }}>Diapositivas ({slides.length})</span>
-          <button 
-            className="btn btn-secondary" 
-            style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '6px' }}
-            onClick={onAddSlide}
-          >
-            <Plus size={12} style={{ marginRight: '4px' }} />
-            Nueva
-          </button>
-        </div>
-
-        {/* Slide List container */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
-          {slides.length === 0 ? (
-            <div style={{ textAlign: 'center', color: 'var(--text-disabled)', fontSize: '12px', marginTop: '20px' }}>
-              Ninguna diapositiva creada. Escribe una prédica o añade un versículo.
-            </div>
-          ) : (
-            <div className="slides-list">
-              {slides.map((slide, idx) => (
-                <div 
-                  key={slide.id} 
-                  className={`slide-thumb-card ${activeSlideId === slide.id ? 'active' : ''}`}
-                  onClick={() => onSelectSlide(slide.id)}
-                >
-                  <div className="slide-thumb-index">{idx + 1}</div>
-                  
-                  <div className="slide-thumb-info">
-                    <span className="slide-thumb-text">{slide.text || '(Vacía)'}</span>
-                    {slide.reference && (
-                      <span className="slide-thumb-ref">{slide.reference}</span>
-                    )}
-                  </div>
-                  
-                  {/* Reordering and Actions */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', gap: '2px' }}>
-                      <button 
-                        className="slide-thumb-delete" 
-                        style={{ opacity: idx > 0 ? 1 : 0.3 }}
-                        disabled={idx === 0}
-                        onClick={(e) => { e.stopPropagation(); onReorderSlides(idx, idx - 1); }}
-                        title="Subir"
-                      >
-                        <ChevronUp size={12} />
-                      </button>
-                      <button 
-                        className="slide-thumb-delete" 
-                        style={{ opacity: idx < slides.length - 1 ? 1 : 0.3 }}
-                        disabled={idx === slides.length - 1}
-                        onClick={(e) => { e.stopPropagation(); onReorderSlides(idx, idx + 1); }}
-                        title="Bajar"
-                      >
-                        <ChevronDown size={12} />
-                      </button>
-                    </div>
-                    <button 
-                      className="slide-thumb-delete"
-                      onClick={(e) => { e.stopPropagation(); onDeleteSlide(slide.id); }}
-                      title="Eliminar diapositiva"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

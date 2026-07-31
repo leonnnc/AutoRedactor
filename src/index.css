@@ -163,8 +163,6 @@ body {
   background-position: 0 0, 10px 10px;
   overflow: hidden;
 }
-
-/* Control Bar */
 .control-bar {
   height: 56px;
   background-color: rgba(19, 19, 26, 0.7);
@@ -461,27 +459,31 @@ body {
   box-shadow: none !important;
 }
 
-/* List of Slides */
+/* List of Slides — now shown as filmstrip below canvas */
 .slides-list {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 10px;
+  flex-direction: row;
+  gap: 8px;
+  padding: 4px 2px;
+  align-items: center;
 }
 
 .slide-thumb-card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  padding: 12px;
+  padding: 8px 12px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
+  /* Fixed width so the filmstrip tiles are uniform */
+  flex-shrink: 0;
+  width: 160px;
+  min-height: 52px;
 }
 
 .slide-thumb-card:hover {
@@ -899,4 +901,81 @@ body {
 @keyframes scaleIn {
   from { transform: scale(0.95); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
+}
+
+/* ─── Slide Filmstrip (below canvas) ─────────────────────────────────────── */
+
+.filmstrip {
+  height: 80px;
+  background-color: rgba(13, 13, 18, 0.9);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.filmstrip-scroll {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+  /* Hide scrollbar but keep scroll behavior */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-subtle) transparent;
+}
+
+.filmstrip-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.filmstrip-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.filmstrip-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 2px;
+}
+
+/* Override slide-thumb-card for horizontal filmstrip layout */
+.filmstrip-scroll .slide-thumb-card {
+  flex-direction: row;
+  align-items: center;
+  width: 160px;
+  min-height: unset;
+  height: 56px;
+  padding: 8px 10px;
+  gap: 8px;
+  flex-shrink: 0;
+  justify-content: flex-start;
+}
+
+.filmstrip-scroll .slide-thumb-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.filmstrip-scroll .slide-thumb-text {
+  font-size: 11px;
+}
+
+.filmstrip-scroll .slide-thumb-ref {
+  font-size: 10px;
+}
+
+/* Show the action buttons always in filmstrip (not just on hover) */
+.filmstrip-scroll .slide-thumb-card .slide-thumb-delete {
+  opacity: 0;
+}
+
+.filmstrip-scroll .slide-thumb-card:hover .slide-thumb-delete {
+  opacity: 1;
 }
