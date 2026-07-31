@@ -23,7 +23,7 @@ interface EditorPanelProps {
   activeSlide: Slide | null;
   globalStyle: SlideStyle;
   onChangeGlobalStyle: (style: SlideStyle) => void;
-  onChangeSlideStyle: (style: Partial<SlideStyle>) => void;
+  onChangeSlideStyle: (style: Partial<SlideStyle> | undefined) => void;
   onApplyStyleToAll: () => void;
   onExportCurrentJpg: () => void;
   onExportAllJpg: () => void;
@@ -105,8 +105,8 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
       // Initialize local override with copy of current global
       onChangeSlideStyle({});
     } else {
-      // Remove local override
-      onChangeSlideStyle(undefined as any); // Trigger removal in parent
+      // Remove local override — pass undefined to signal removal in parent
+      onChangeSlideStyle(undefined);
     }
   };
 

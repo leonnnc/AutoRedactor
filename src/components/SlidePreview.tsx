@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Slide, SlideStyle, ViewportMode, CustomCanvasSize } from '../types';
+import { getViewportDimensions } from '../utils/captureSlide';
 
 interface SlidePreviewProps {
   slide: Slide | null;
@@ -9,21 +10,17 @@ interface SlidePreviewProps {
   canvasRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export const getViewportDimensions = (mode: ViewportMode, custom?: CustomCanvasSize) => {
+/**
+ * Preview-only scale: custom mode uses the same logic as the other modes
+ * but fits within the available canvas area (~960 px wide).
+ */
+const getPreviewDimensions = (mode: ViewportMode, custom?: CustomCanvasSize) => {
   if (mode === 'custom' && custom) {
-    // Scale to fit within ~960px wide in preview
     const maxPreviewW = 960;
     const scale = Math.min(1, maxPreviewW / custom.width);
     return { width: custom.width, height: custom.height, scale };
   }
-  switch (mode) {
-    case 'desktop':
-      return { width: 1920, height: 1080, scale: 0.5 };
-    case 'tablet':
-      return { width: 1024, height: 768, scale: 0.703125 };
-    case 'mobile':
-      return { width: 1080, height: 1920, scale: 0.28125 };
-  }
+  return getViewportDimensions(mode, custom);
 };
 
 export const SlidePreview: React.FC<SlidePreviewProps> = ({
@@ -57,7 +54,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
     style.paddingX = globalStyle.paddingX;
   }
 
-  const dimensions = getViewportDimensions(viewportMode, customCanvas);
+  const dimensions = getPreviewDimensions(viewportMode, customCanvas);
   
   // Outer wrapper container size
   const wrapperStyle: React.CSSProperties = {

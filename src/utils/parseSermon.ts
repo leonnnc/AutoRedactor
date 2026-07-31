@@ -1,4 +1,5 @@
 import type { Slide, BibleData } from '../types';
+import { norm } from './bibleAbbreviations';
 
 export const KNOWN_VERSIONS = [
   'rvr1960', 'nvi', 'tla', 'ntv', 'lbla', 'dhh', 'nbla',
@@ -123,12 +124,6 @@ export const findClosestBookName = (
   name: string,
   list: string[],
 ): string | null => {
-  const norm = (s: string) =>
-    s
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .trim();
   const nName = norm(name);
 
   let bestMatch: string | null = null;

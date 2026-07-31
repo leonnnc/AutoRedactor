@@ -100,9 +100,9 @@ export const SermonInputPanel: React.FC<SermonInputPanelProps> = ({
   };
 
   const handleAddAll = () => {
-    results.forEach((item, idx) => {
-      if (!item.added) onAddVerseToSlides(item.text, item.reference);
-    });
+    // Collect pending items first, then batch-add and mark all as added
+    const pending = results.filter((r) => !r.added);
+    pending.forEach((item) => onAddVerseToSlides(item.text, item.reference));
     setResults((prev) => prev.map((r) => ({ ...r, added: true })));
   };
 
