@@ -1,6 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import type { Slide, CanvasElement, SlideBackground, ViewportMode, CustomCanvasSize } from '../types';
 import { getViewportDimensions } from '../utils/captureSlide';
+import { calcTextBoxH } from '../utils/parseSermon';
 import { Bold, Italic, Type, AlignLeft, AlignCenter, AlignRight, Trash2, Plus, Minus } from 'lucide-react';
 
 const FONTS = [
@@ -345,7 +346,15 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   const selectedEl = slide.elements.find((e) => e.id === selectedId) ?? null;
 
   const upEl = (fields: Partial<CanvasElement>) => {
-    if (selectedId) onUpdateElement(selectedId, fields);
+    if (!selectedId || !selectedEl) return;
+    // When fontSize changes, recalculate box height to fit text snugly
+    let extra: Partial<CanvasElement> = {};
+    if (fields.fontSize !== undefined) {
+      const newFs = fields.fontSize;
+      const lines = Math.max(1, Math.ceil(selectedEl.text.length / Math.max(1, Math.floor(selectedEl.w * 9.6 / newFs))));
+      extra.h = calcTextBoxH(newFs, selectedEl.lineHeight, lines, canvasH);
+    }
+    onUpdateElement(selectedId, { ...fields, ...extra });
   };
 
   return (
@@ -375,14 +384,14 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
           <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
 
           {/* Font size */}
-          <button onClick={() => upEl({ fontSize: Math.max(8, selectedEl.fontSize - 2) })}
+          <button onClick={() => upEl({ fontSize: Math.max(4, selectedEl.fontSize - 1) })}
             style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}>
             <Minus size={12} />
           </button>
           <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-main)', minWidth: '28px', textAlign: 'center' }}>
             {selectedEl.fontSize}
           </span>
-          <button onClick={() => upEl({ fontSize: Math.min(300, selectedEl.fontSize + 2) })}
+          <button onClick={() => upEl({ fontSize: Math.min(500, selectedEl.fontSize + 1) })}
             style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}>
             <Plus size={12} />
           </button>

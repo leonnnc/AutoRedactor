@@ -30,57 +30,90 @@ export const DEFAULT_BACKGROUND: SlideBackground = {
 
 // ─── Element factories ────────────────────────────────────────────────────────
 
+/**
+ * Calculate the height % a text box should have to snugly fit its text.
+ * canvasH: preview canvas height in px (e.g. 540 for desktop at 0.5 scale)
+ */
+export const calcTextBoxH = (
+  fontSize: number,
+  lineHeight: number,
+  lines: number,
+  canvasH: number,
+  paddingPx = 12,
+): number => {
+  const contentH = fontSize * lineHeight * lines + paddingPx * 2;
+  return Math.min(90, Math.max(5, (contentH / canvasH) * 100));
+};
+
+// Desktop preview canvas height at 0.5 scale
+const PREVIEW_H = 540;
+
 export const makeTextElement = (
   text: string,
   opts: Partial<CanvasElement> = {},
-): CanvasElement => ({
-  id: crypto.randomUUID(),
-  type: 'text',
-  x: 5,
-  y: 30,
-  w: 90,
-  h: 40,
-  text,
-  isReference: false,
-  fontSize: 32,          // stored in preview-px (half of 1920 full-res = 960 preview)
-  fontFamily: "'Playfair Display', serif",
-  color: '#ffffff',
-  bold: false,
-  italic: false,
-  uppercase: false,
-  textAlign: 'center',
-  lineHeight: 1.4,
-  textShadow: true,
-  opacity: 1,
-  rotation: 0,
-  ...opts,
-});
+): CanvasElement => {
+  const fontSize = (opts.fontSize ?? 32);
+  const lineHeight = 1.4;
+  // Estimate number of lines based on text length and box width
+  const charsPerLine = Math.max(1, Math.floor((opts.w ?? 90) * 9.6 / fontSize));
+  const numLines = Math.max(1, Math.ceil(text.length / charsPerLine));
+  const h = opts.h ?? calcTextBoxH(fontSize, lineHeight, numLines, PREVIEW_H);
+
+  return {
+    id: crypto.randomUUID(),
+    type: 'text',
+    x: 5,
+    y: 30,
+    w: 90,
+    h,
+    text,
+    isReference: false,
+    fontSize,
+    fontFamily: "'Playfair Display', serif",
+    color: '#ffffff',
+    bold: false,
+    italic: false,
+    uppercase: false,
+    textAlign: 'center',
+    lineHeight,
+    textShadow: true,
+    opacity: 1,
+    rotation: 0,
+    ...opts,
+    // recalculate h if opts overrides fontSize but not h
+    ...(opts.fontSize && !opts.h ? { h: calcTextBoxH(opts.fontSize, lineHeight, numLines, PREVIEW_H) } : {}),
+  };
+};
 
 export const makeReferenceElement = (
   reference: string,
   opts: Partial<CanvasElement> = {},
-): CanvasElement => ({
-  id: crypto.randomUUID(),
-  type: 'text',
-  x: 5,
-  y: 76,
-  w: 90,
-  h: 12,
-  text: reference,
-  isReference: true,
-  fontSize: 18,           // stored in preview-px
-  fontFamily: "'Playfair Display', serif",
-  color: '#fde047',
-  bold: true,
-  italic: true,
-  uppercase: true,
-  textAlign: 'center',
-  lineHeight: 1.2,
-  textShadow: true,
-  opacity: 0.9,
-  rotation: 0,
-  ...opts,
-});
+): CanvasElement => {
+  const fontSize = opts.fontSize ?? 18;
+  const h = opts.h ?? calcTextBoxH(fontSize, 1.2, 1, PREVIEW_H, 8);
+  return {
+    id: crypto.randomUUID(),
+    type: 'text',
+    x: 5,
+    y: 76,
+    w: 90,
+    h,
+    text: reference,
+    isReference: true,
+    fontSize,
+    fontFamily: "'Playfair Display', serif",
+    color: '#fde047',
+    bold: true,
+    italic: true,
+    uppercase: true,
+    textAlign: 'center',
+    lineHeight: 1.2,
+    textShadow: true,
+    opacity: 0.9,
+    rotation: 0,
+    ...opts,
+  };
+};
 
 export const makeDefaultSlide = (): Slide => ({
   id: crypto.randomUUID(),
