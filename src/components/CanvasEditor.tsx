@@ -105,11 +105,28 @@ const CanvasElementNode: React.FC<{
   onDragStart: (e: React.MouseEvent, type: 'move', handle?: ResizeHandle) => void;
   onResizeStart: (e: React.MouseEvent, handle: ResizeHandle) => void;
   onCommitText: (text: string) => void;
+  onFitToText: (w: number, h: number) => void;
   shadowColor: string;
   shadowBlur: number;
-}> = ({ el, isSelected, onSelect, onDragStart, onResizeStart, onCommitText, shadowColor, shadowBlur }) => {
+}> = ({ el, isSelected, canvasW, canvasH, onSelect, onDragStart, onResizeStart, onCommitText, onFitToText, shadowColor, shadowBlur }) => {
   const [editing, setEditing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textDivRef = useRef<HTMLDivElement>(null);
+
+  const PAD_PX = 6; // padding around text in px
+
+  // After every render, measure the real rendered text size and report it
+  useEffect(() => {
+    if (editing || !textDivRef.current) return;
+    const rect = textDivRef.current.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    const newW = Math.min(95, Math.max(5, ((rect.width + PAD_PX * 2) / canvasW) * 100));
+    const newH = Math.min(95, Math.max(2, ((rect.height + PAD_PX * 2) / canvasH) * 100));
+    // Only update if meaningfully different (>0.5%) to avoid infinite loops
+    if (Math.abs(newW - el.w) > 0.5 || Math.abs(newH - el.h) > 0.5) {
+      onFitToText(newW, newH);
+    }
+  });
 
   const shadowStr = el.textShadow
     ? `0 ${shadowBlur}px ${shadowBlur * 2}px ${shadowColor}`
@@ -117,23 +134,18 @@ const CanvasElementNode: React.FC<{
 
   const textStyle: React.CSSProperties = {
     color: el.color,
-    fontSize: `${el.fontSize}px`,       // fontSize stored in preview-px, use directly
+    fontSize: `${el.fontSize}px`,
     fontFamily: el.fontFamily,
     fontWeight: el.bold ? '700' : '400',
     fontStyle: el.italic ? 'italic' : 'normal',
     textTransform: el.uppercase ? 'uppercase' : 'none',
     textAlign: el.textAlign,
     lineHeight: el.lineHeight,
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
+    whiteSpace: 'nowrap',          // single line — no wrapping unless box is resized manually
     opacity: el.opacity,
     ...(el.rotation !== 0 ? { transform: `rotate(${el.rotation}deg)` } : {}),
     ...(shadowStr ? { textShadow: shadowStr } : {}),
-    ...(el.isReference ? {
-      fontSize: `${el.fontSize}px`,
-      letterSpacing: '1px',
-      fontWeight: '600',
-    } : {}),
+    ...(el.isReference ? { letterSpacing: '1px', fontWeight: '600' } : {}),
   };
 
   const handleDoubleClick = (e: React.MouseEvent) => {
@@ -161,6 +173,9 @@ const CanvasElementNode: React.FC<{
     userSelect: 'none',
     outline: isSelected ? `1px solid rgba(99,102,241,0.7)` : 'none',
     outlineOffset: '2px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   };
 
   return (
@@ -178,33 +193,26 @@ const CanvasElementNode: React.FC<{
           ref={textareaRef}
           defaultValue={el.text}
           onBlur={handleBlur}
-          onKeyDown={(e) => { if (e.key === 'Escape') { setEditing(false); } }}
+          onKeyDown={(e) => { if (e.key === 'Escape') setEditing(false); }}
           style={{
-            width: '100%',
-            height: '100%',
+            width: '100%', height: '100%',
             background: 'rgba(0,0,0,0.5)',
-            border: '2px solid #6366f1',
-            borderRadius: '4px',
-            color: el.color,
-            fontSize: `${el.fontSize}px`,
+            border: '2px solid #6366f1', borderRadius: '4px',
+            color: el.color, fontSize: `${el.fontSize}px`,
             fontFamily: el.fontFamily,
             fontWeight: el.bold ? '700' : '400',
             fontStyle: el.italic ? 'italic' : 'normal',
             textAlign: el.textAlign,
             lineHeight: String(el.lineHeight),
-            padding: '4px',
-            resize: 'none',
-            outline: 'none',
-            boxSizing: 'border-box',
+            padding: '4px', resize: 'none', outline: 'none', boxSizing: 'border-box',
           }}
           onClick={(e) => e.stopPropagation()}
         />
       ) : (
-        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
-          <div style={{ ...textStyle, width: '100%' }}>{el.text || <span style={{ opacity: 0.4 }}>Doble clic para editar</span>}</div>
+        <div ref={textDivRef} style={{ ...textStyle, display: 'inline-block' }}>
+          {el.text || <span style={{ opacity: 0.3 }}>Doble clic para editar</span>}
         </div>
       )}
-
       {/* Resize handles — only when selected and not editing */}
       {isSelected && !editing && HANDLES.map((h) => (
         <div
@@ -498,6 +506,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
               onDragStart={(e, type) => startDrag(e, el.id, type)}
               onResizeStart={(e, handle) => startResize(e, el.id, handle)}
               onCommitText={(text) => onUpdateElement(el.id, { text })}
+              onFitToText={(w, h) => onUpdateElement(el.id, { w, h })}
               shadowColor={bg.textShadowColor}
               shadowBlur={bg.textShadowBlur}
             />
