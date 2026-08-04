@@ -24,9 +24,11 @@ interface DragState {
   startY: number;
   startW: number;
   startH: number;
-  startFontSize: number;   // for proportional font scaling on resize
+  startFontSize: number;
   canvasW: number;
   canvasH: number;
+  fullW: number;   // full-resolution width (e.g. 1920)
+  fullH: number;   // full-resolution height (e.g. 1080)
 }
 
 interface CanvasEditorProps {
@@ -274,9 +276,16 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       hh = newH;
     }
 
-    // Scale fontSize proportionally to the change in box size
-    const scaleW = drag.startW > 0 ? w / drag.startW : 1;
-    const scaleH = drag.startH > 0 ? hh / drag.startH : 1;
+    // Scale fontSize proportionally using full-resolution canvas dimensions
+    // fontSize is stored at full-res scale (e.g. 1920×1080),
+    // so we must compare sizes in full-res pixel space
+    const startWpx = drag.startW * drag.fullW / 100;
+    const newWpx   = w           * drag.fullW / 100;
+    const startHpx = drag.startH * drag.fullH / 100;
+    const newHpx   = hh          * drag.fullH / 100;
+
+    const scaleW = startWpx > 0 ? newWpx / startWpx : 1;
+    const scaleH = startHpx > 0 ? newHpx / startHpx : 1;
     const isHorizontalOnly = (h === 'e' || h === 'w');
     const isVerticalOnly   = (h === 'n' || h === 's');
     const fontScale = isHorizontalOnly ? scaleW
@@ -313,6 +322,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       startX: el.x, startY: el.y, startW: el.w, startH: el.h,
       startFontSize: el.fontSize,
       canvasW, canvasH,
+      fullW: dims.width, fullH: dims.height,
     };
   };
 
@@ -327,6 +337,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       startX: el.x, startY: el.y, startW: el.w, startH: el.h,
       startFontSize: el.fontSize,
       canvasW, canvasH,
+      fullW: dims.width, fullH: dims.height,
     };
   };
 
