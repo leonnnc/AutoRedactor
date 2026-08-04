@@ -161,12 +161,11 @@ export default function App() {
       isVerse: true,
       background: { ...bg },
       elements: [
-        makeTextElement(text, { x: 5, y: 20, w: 90, h: 52 }),
-        {
+        makeTextElement(text, { x: 5, y: 20, w: 90, h: 52 }),        {
           id: crypto.randomUUID(), type: 'text',
           x: 5, y: 76, w: 90, h: 12,
           text: reference, isReference: true,
-          fontSize: 64, fontFamily: "'Playfair Display', serif",
+          fontSize: 18, fontFamily: "'Playfair Display', serif",
           color: '#fde047', bold: true, italic: true, uppercase: true,
           textAlign: 'center', lineHeight: 1.2, textShadow: true, opacity: 0.9, rotation: 0,
         },

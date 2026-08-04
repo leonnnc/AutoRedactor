@@ -151,7 +151,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
                 <div style={{
                   width: '100%',
                   color: el.color,
-                  fontSize: `${el.fontSize * dims.scale}px`,
+                  fontSize: `${el.fontSize}px`,
                   fontFamily: el.fontFamily,
                   fontWeight: el.bold ? '700' : '400',
                   fontStyle: el.italic ? 'italic' : 'normal',
@@ -164,7 +164,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
                   ...(el.rotation !== 0 ? { transform: `rotate(${el.rotation}deg)` } : {}),
                   ...(shadowStr ? { textShadow: shadowStr } : {}),
                   ...(el.isReference ? {
-                    fontSize: `${el.fontSize * dims.scale * 0.55}px`,
+                    fontSize: `${el.fontSize}px`,
                     letterSpacing: '1px',
                     fontWeight: '600',
                   } : {}),

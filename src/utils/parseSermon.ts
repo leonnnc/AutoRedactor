@@ -42,7 +42,7 @@ export const makeTextElement = (
   h: 40,
   text,
   isReference: false,
-  fontSize: 64,
+  fontSize: 32,          // stored in preview-px (half of 1920 full-res = 960 preview)
   fontFamily: "'Playfair Display', serif",
   color: '#ffffff',
   bold: false,
@@ -68,7 +68,7 @@ export const makeReferenceElement = (
   h: 12,
   text: reference,
   isReference: true,
-  fontSize: 64,           // rendered at 55% via isReference flag
+  fontSize: 18,           // stored in preview-px
   fontFamily: "'Playfair Display', serif",
   color: '#fde047',
   bold: true,

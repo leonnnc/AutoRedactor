@@ -106,7 +106,7 @@ const CanvasElementNode: React.FC<{
   onCommitText: (text: string) => void;
   shadowColor: string;
   shadowBlur: number;
-}> = ({ el, isSelected, scale, onSelect, onDragStart, onResizeStart, onCommitText, shadowColor, shadowBlur }) => {
+}> = ({ el, isSelected, onSelect, onDragStart, onResizeStart, onCommitText, shadowColor, shadowBlur }) => {
   const [editing, setEditing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -116,7 +116,7 @@ const CanvasElementNode: React.FC<{
 
   const textStyle: React.CSSProperties = {
     color: el.color,
-    fontSize: `${el.fontSize * scale}px`,
+    fontSize: `${el.fontSize}px`,       // fontSize stored in preview-px, use directly
     fontFamily: el.fontFamily,
     fontWeight: el.bold ? '700' : '400',
     fontStyle: el.italic ? 'italic' : 'normal',
@@ -129,7 +129,7 @@ const CanvasElementNode: React.FC<{
     ...(el.rotation !== 0 ? { transform: `rotate(${el.rotation}deg)` } : {}),
     ...(shadowStr ? { textShadow: shadowStr } : {}),
     ...(el.isReference ? {
-      fontSize: `${el.fontSize * scale * 0.55}px`,
+      fontSize: `${el.fontSize}px`,
       letterSpacing: '1px',
       fontWeight: '600',
     } : {}),
@@ -185,7 +185,7 @@ const CanvasElementNode: React.FC<{
             border: '2px solid #6366f1',
             borderRadius: '4px',
             color: el.color,
-            fontSize: `${el.fontSize * scale}px`,
+            fontSize: `${el.fontSize}px`,
             fontFamily: el.fontFamily,
             fontWeight: el.bold ? '700' : '400',
             fontStyle: el.italic ? 'italic' : 'normal',
@@ -276,13 +276,12 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       hh = newH;
     }
 
-    // Scale fontSize proportionally using full-resolution canvas dimensions
-    // fontSize is stored at full-res scale (e.g. 1920×1080),
-    // so we must compare sizes in full-res pixel space
-    const startWpx = drag.startW * drag.fullW / 100;
-    const newWpx   = w           * drag.fullW / 100;
-    const startHpx = drag.startH * drag.fullH / 100;
-    const newHpx   = hh          * drag.fullH / 100;
+    // Scale fontSize proportionally using preview canvas dimensions
+    // fontSize is now stored in preview-px, so compare in preview pixel space
+    const startWpx = drag.startW * drag.canvasW / 100;
+    const newWpx   = w           * drag.canvasW / 100;
+    const startHpx = drag.startH * drag.canvasH / 100;
+    const newHpx   = hh          * drag.canvasH / 100;
 
     const scaleW = startWpx > 0 ? newWpx / startWpx : 1;
     const scaleH = startHpx > 0 ? newHpx / startHpx : 1;
@@ -291,7 +290,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
     const fontScale = isHorizontalOnly ? scaleW
                     : isVerticalOnly   ? scaleH
                     : (scaleW + scaleH) / 2;
-    const newFontSize = Math.round(clamp(drag.startFontSize * fontScale, 8, 300));
+    const newFontSize = Math.round(clamp(drag.startFontSize * fontScale, 4, 500));
 
     onUpdateElement(elId, { x, y, w, h: hh, fontSize: newFontSize });
   }, [onUpdateElement]);

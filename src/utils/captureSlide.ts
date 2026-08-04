@@ -128,10 +128,12 @@ export const captureFullResolutionSlide = async (
       : undefined;
 
     const inner = document.createElement('div');
+    // fontSize stored in preview-px — scale up to full-res by dividing by preview scale
+    const fullResFontSize = el.fontSize / dims.scale;
     Object.assign(inner.style, {
       width: '100%',
       color: el.color,
-      fontSize: px(el.isReference ? el.fontSize * 0.55 : el.fontSize),
+      fontSize: px(el.isReference ? fullResFontSize * 0.55 : fullResFontSize),
       fontFamily: el.fontFamily,
       fontWeight: el.bold ? '700' : '400',
       fontStyle: el.italic ? 'italic' : 'normal',
