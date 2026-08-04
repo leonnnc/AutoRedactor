@@ -24,6 +24,7 @@ interface DragState {
   startY: number;
   startW: number;
   startH: number;
+  startFontSize: number;   // for proportional font scaling on resize
   canvasW: number;
   canvasH: number;
 }
@@ -273,7 +274,17 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       hh = newH;
     }
 
-    onUpdateElement(elId, { x, y, w, h: hh });
+    // Scale fontSize proportionally to the change in box size
+    const scaleW = drag.startW > 0 ? w / drag.startW : 1;
+    const scaleH = drag.startH > 0 ? hh / drag.startH : 1;
+    const isHorizontalOnly = (h === 'e' || h === 'w');
+    const isVerticalOnly   = (h === 'n' || h === 's');
+    const fontScale = isHorizontalOnly ? scaleW
+                    : isVerticalOnly   ? scaleH
+                    : (scaleW + scaleH) / 2;
+    const newFontSize = Math.round(clamp(drag.startFontSize * fontScale, 8, 300));
+
+    onUpdateElement(elId, { x, y, w, h: hh, fontSize: newFontSize });
   }, [onUpdateElement]);
 
   const handleMouseUp = useCallback(() => {
@@ -300,6 +311,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       type, handle,
       startMouseX: e.clientX, startMouseY: e.clientY,
       startX: el.x, startY: el.y, startW: el.w, startH: el.h,
+      startFontSize: el.fontSize,
       canvasW, canvasH,
     };
   };
@@ -313,6 +325,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       type: 'resize', handle,
       startMouseX: e.clientX, startMouseY: e.clientY,
       startX: el.x, startY: el.y, startW: el.w, startH: el.h,
+      startFontSize: el.fontSize,
       canvasW, canvasH,
     };
   };
