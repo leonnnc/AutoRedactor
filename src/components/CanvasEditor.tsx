@@ -1,6 +1,15 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import type { Slide, CanvasElement, SlideBackground, ViewportMode, CustomCanvasSize } from '../types';
 import { getViewportDimensions } from '../utils/captureSlide';
+import { Bold, Italic, Type, AlignLeft, AlignCenter, AlignRight, Trash2, Plus, Minus } from 'lucide-react';
+
+const FONTS = [
+  { label: 'Playfair',  value: "'Playfair Display', serif" },
+  { label: 'Inter',     value: "'Inter', sans-serif" },
+  { label: 'Montserrat',value: "'Montserrat', sans-serif" },
+  { label: 'Lora',      value: "'Lora', serif" },
+  { label: 'Cinzel',    value: "'Cinzel', serif" },
+];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -26,7 +35,7 @@ interface CanvasEditorProps {
   customCanvas?: CustomCanvasSize;
   onSelectElement: (id: string | null) => void;
   onUpdateElement: (id: string, fields: Partial<CanvasElement>) => void;
-  onAddTextElement: () => void;
+  onDeleteElement: (id: string) => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -146,8 +155,8 @@ const CanvasElementNode: React.FC<{
     boxSizing: 'border-box',
     cursor: isSelected ? 'move' : 'pointer',
     userSelect: 'none',
-    outline: isSelected ? `${Math.max(1, scale * 2)}px solid #6366f1` : 'none',
-    outlineOffset: '1px',
+    outline: isSelected ? `1px solid rgba(99,102,241,0.7)` : 'none',
+    outlineOffset: '2px',
   };
 
   return (
@@ -202,13 +211,14 @@ const CanvasElementNode: React.FC<{
             top: h.top,
             left: h.left,
             transform: h.transform,
-            width: `${Math.max(8, 10 / scale)}px`,
-            height: `${Math.max(8, 10 / scale)}px`,
+            width: '7px',
+            height: '7px',
             backgroundColor: '#ffffff',
-            border: '2px solid #6366f1',
-            borderRadius: '2px',
+            border: '1px solid rgba(99,102,241,0.8)',
+            borderRadius: '50%',
             cursor: h.cursor,
             zIndex: 100,
+            opacity: 0.85,
           }}
         />
       ))}
@@ -219,13 +229,8 @@ const CanvasElementNode: React.FC<{
 // ─── Main CanvasEditor component ──────────────────────────────────────────────
 
 export const CanvasEditor: React.FC<CanvasEditorProps> = ({
-  slide,
-  selectedId,
-  viewportMode,
-  customCanvas,
-  onSelectElement,
-  onUpdateElement,
-  onAddTextElement,
+  slide, selectedId, viewportMode, customCanvas,
+  onSelectElement, onUpdateElement, onDeleteElement,
 }) => {
   const dims = getPreviewDimensions(viewportMode, customCanvas);
   const canvasW = dims.width * dims.scale;
@@ -314,19 +319,96 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
 
   const bg = slide.background;
   const hasBgImage = bg.backgroundType === 'image' && !!bg.backgroundImage;
+  const selectedEl = slide.elements.find((e) => e.id === selectedId) ?? null;
+
+  const upEl = (fields: Partial<CanvasElement>) => {
+    if (selectedId) onUpdateElement(selectedId, fields);
+  };
 
   return (
     <div className="canvas-area">
-      {/* Toolbar */}
-      <div style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', zIndex: 50, display: 'flex', gap: '6px' }}>
-        <button
-          className="btn btn-secondary"
-          style={{ fontSize: '12px', padding: '5px 12px' }}
-          onClick={onAddTextElement}
+
+      {/* ── Floating contextual toolbar ── */}
+      {selectedEl && (
+        <div
+          style={{
+            position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 200, display: 'flex', alignItems: 'center', gap: '4px',
+            background: 'rgba(19,19,26,0.95)', backdropFilter: 'blur(10px)',
+            border: '1px solid var(--border-subtle)', borderRadius: '10px',
+            padding: '5px 10px', boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
         >
-          + Texto
-        </button>
-      </div>
+          {/* Font */}
+          <select
+            value={selectedEl.fontFamily}
+            onChange={(e) => upEl({ fontFamily: e.target.value })}
+            style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', fontSize: '12px', cursor: 'pointer', outline: 'none', maxWidth: '100px' }}
+          >
+            {FONTS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+          </select>
+
+          <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
+
+          {/* Font size */}
+          <button onClick={() => upEl({ fontSize: Math.max(8, selectedEl.fontSize - 2) })}
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}>
+            <Minus size={12} />
+          </button>
+          <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-main)', minWidth: '28px', textAlign: 'center' }}>
+            {selectedEl.fontSize}
+          </span>
+          <button onClick={() => upEl({ fontSize: Math.min(300, selectedEl.fontSize + 2) })}
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}>
+            <Plus size={12} />
+          </button>
+
+          <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
+
+          {/* Color */}
+          <input type="color" value={selectedEl.color.startsWith('#') ? selectedEl.color : '#ffffff'}
+            onChange={(e) => upEl({ color: e.target.value })}
+            style={{ width: '22px', height: '22px', padding: '1px', cursor: 'pointer', border: '1px solid var(--border-subtle)', borderRadius: '4px', background: 'transparent' }} />
+
+          <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
+
+          {/* Bold / Italic / Uppercase */}
+          {[
+            { icon: <Bold size={13}/>,   active: selectedEl.bold,      action: () => upEl({ bold: !selectedEl.bold }) },
+            { icon: <Italic size={13}/>, active: selectedEl.italic,    action: () => upEl({ italic: !selectedEl.italic }) },
+            { icon: <Type size={13}/>,   active: selectedEl.uppercase, action: () => upEl({ uppercase: !selectedEl.uppercase }) },
+          ].map((btn, i) => (
+            <button key={i} onClick={btn.action}
+              style={{ background: btn.active ? 'rgba(99,102,241,0.25)' : 'none', border: 'none',
+                color: btn.active ? '#a5b4fc' : 'var(--text-muted)', cursor: 'pointer',
+                padding: '4px 6px', borderRadius: '5px', display: 'flex', alignItems: 'center' }}>
+              {btn.icon}
+            </button>
+          ))}
+
+          <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
+
+          {/* Alignment */}
+          {([['left', <AlignLeft size={13}/>], ['center', <AlignCenter size={13}/>], ['right', <AlignRight size={13}/>]] as const).map(([a, icon]) => (
+            <button key={a} onClick={() => upEl({ textAlign: a })}
+              style={{ background: selectedEl.textAlign === a ? 'rgba(99,102,241,0.25)' : 'none', border: 'none',
+                color: selectedEl.textAlign === a ? '#a5b4fc' : 'var(--text-muted)', cursor: 'pointer',
+                padding: '4px 6px', borderRadius: '5px', display: 'flex', alignItems: 'center' }}>
+              {icon}
+            </button>
+          ))}
+
+          <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
+
+          {/* Delete */}
+          <button onClick={() => onDeleteElement(selectedId!)}
+            style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer',
+              padding: '4px 6px', borderRadius: '5px', display: 'flex', alignItems: 'center' }}>
+            <Trash2 size={13} />
+          </button>
+        </div>
+      )}
 
       {/* Scaled canvas wrapper */}
       <div

@@ -1,19 +1,14 @@
 import React, { useRef } from 'react';
-import type { Slide, CanvasElement, SlideBackground } from '../types';
+import type { Slide, SlideBackground } from '../types';
 import {
-  AlignLeft, AlignCenter, AlignRight,
-  Bold, Italic, Type, Image as ImageIcon,
-  Download, Sliders, FileText, FileImage, Presentation, Check,
-  Trash2, RotateCcw,
+  Image as ImageIcon, Download, Sliders,
+  FileText, FileImage, Presentation, Check,
 } from 'lucide-react';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface EditorPanelProps {
   activeSlide: Slide | null;
-  selectedElement: CanvasElement | null;
-  onUpdateElement: (id: string, fields: Partial<CanvasElement>) => void;
-  onDeleteElement: (id: string) => void;
   onUpdateBackground: (fields: Partial<SlideBackground>) => void;
   onApplyBgToAll: () => void;
   onExportCurrentJpg: () => void;
@@ -25,17 +20,6 @@ interface EditorPanelProps {
 }
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
-
-const FONTS = [
-  { name: 'Inter',             value: "'Inter', sans-serif" },
-  { name: 'Montserrat',        value: "'Montserrat', sans-serif" },
-  { name: 'Playfair Display',  value: "'Playfair Display', serif" },
-  { name: 'Lora',              value: "'Lora', serif" },
-  { name: 'Cinzel',            value: "'Cinzel', serif" },
-  { name: 'System Default',    value: 'system-ui, sans-serif' },
-];
-
-const PRESET_COLORS = ['#ffffff','#f3f4f6','#fde047','#a7f3d0','#bfdbfe','#fbcfe8','#fed7aa','#c084fc'];
 
 const PRESET_GRADIENTS = [
   { name: 'Midnight Purple', value: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%)' },
@@ -87,18 +71,13 @@ const Slider: React.FC<{ min: number; max: number; step?: number; value: number;
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export const EditorPanel: React.FC<EditorPanelProps> = ({
-  activeSlide, selectedElement,
-  onUpdateElement, onDeleteElement,
+  activeSlide,
   onUpdateBackground, onApplyBgToAll,
   onExportCurrentJpg, onExportAllJpg, onExportPdf, onExportPptx,
   isExporting, exportProgress,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bg = activeSlide?.background;
-
-  const upEl = (fields: Partial<CanvasElement>) => {
-    if (selectedElement) onUpdateElement(selectedElement.id, fields);
-  };
 
   const upBg = (fields: Partial<SlideBackground>) => {
     if (bg !== undefined) onUpdateBackground(fields);
@@ -122,129 +101,6 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
       </div>
 
       <div className="panel-content">
-
-        {/* ── ELEMENT PROPERTIES ── */}
-        {selectedElement ? (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="form-label" style={{ margin: 0 }}>Elemento seleccionado</span>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }}
-                  title="Quitar selección" onClick={() => {}}>
-                  <RotateCcw size={12} />
-                </button>
-                <button className="btn btn-danger" style={{ padding: '4px 8px', fontSize: '11px' }}
-                  onClick={() => onDeleteElement(selectedElement.id)} title="Eliminar elemento">
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            </div>
-
-            {/* Text content */}
-            <Row label="Texto">
-              <textarea className="form-textarea" style={{ minHeight: '72px', fontSize: '13px' }}
-                value={selectedElement.text}
-                onChange={(e) => upEl({ text: e.target.value })} />
-            </Row>
-
-            {/* Font */}
-            <Row label="Tipografía">
-              <select className="form-select" value={selectedElement.fontFamily}
-                onChange={(e) => upEl({ fontFamily: e.target.value })}>
-                {FONTS.map((f) => <option key={f.value} value={f.value}>{f.name}</option>)}
-              </select>
-            </Row>
-
-            {/* Format row */}
-            <Row label="Formato">
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                <div className="align-group" style={{ flex: 1 }}>
-                  <button className={`align-btn ${selectedElement.bold ? 'active' : ''}`} onClick={() => upEl({ bold: !selectedElement.bold })}><Bold size={15}/></button>
-                  <button className={`align-btn ${selectedElement.italic ? 'active' : ''}`} onClick={() => upEl({ italic: !selectedElement.italic })}><Italic size={15}/></button>
-                  <button className={`align-btn ${selectedElement.uppercase ? 'active' : ''}`} onClick={() => upEl({ uppercase: !selectedElement.uppercase })}><Type size={15}/></button>
-                </div>
-                <input type="color" value={selectedElement.color.startsWith('#') ? selectedElement.color : '#ffffff'}
-                  onChange={(e) => upEl({ color: e.target.value })}
-                  style={{ width: '34px', height: '34px', padding: '2px', cursor: 'pointer', borderRadius: '8px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-deep)' }} />
-              </div>
-              <div className="color-picker-row" style={{ marginTop: '4px' }}>
-                {PRESET_COLORS.map((c) => (
-                  <div key={c} className={`color-swatch ${selectedElement.color.toLowerCase() === c ? 'active' : ''}`}
-                    style={{ backgroundColor: c }} onClick={() => upEl({ color: c })} />
-                ))}
-              </div>
-            </Row>
-
-            {/* Text align */}
-            <Row label="Alineación">
-              <div className="align-group">
-                {(['left','center','right'] as const).map((a) => (
-                  <button key={a} className={`align-btn ${selectedElement.textAlign === a ? 'active' : ''}`}
-                    onClick={() => upEl({ textAlign: a })}>
-                    {a === 'left' ? <AlignLeft size={15}/> : a === 'center' ? <AlignCenter size={15}/> : <AlignRight size={15}/>}
-                  </button>
-                ))}
-              </div>
-            </Row>
-
-            {/* Size */}
-            <Row label="Tamaño" value={`${selectedElement.fontSize}px`}>
-              <Slider min={12} max={200} value={selectedElement.fontSize} onChange={(v) => upEl({ fontSize: v })} />
-            </Row>
-
-            {/* Line height */}
-            <Row label="Interlineado" value={selectedElement.lineHeight.toFixed(1)}>
-              <Slider min={1} max={3} step={0.1} value={selectedElement.lineHeight} onChange={(v) => upEl({ lineHeight: v })} />
-            </Row>
-
-            {/* Opacity */}
-            <Row label="Opacidad" value={`${Math.round(selectedElement.opacity * 100)}%`}>
-              <Slider min={0} max={1} step={0.05} value={selectedElement.opacity} onChange={(v) => upEl({ opacity: v })} />
-            </Row>
-
-            {/* Rotation */}
-            <Row label="Rotación" value={`${selectedElement.rotation}°`}>
-              <Slider min={-180} max={180} value={selectedElement.rotation} onChange={(v) => upEl({ rotation: v })} />
-            </Row>
-
-            {/* Position & size manual inputs */}
-            <Row label="Posición y tamaño (%)">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                {(['x','y','w','h'] as const).map((prop) => (
-                  <div key={prop} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <span style={{ fontSize: '10px', color: 'var(--text-disabled)', textTransform: 'uppercase' }}>{prop}</span>
-                    <input type="number" className="form-input" style={{ padding: '4px 8px', fontSize: '12px', textAlign: 'center' }}
-                      min={0} max={100} step={0.5}
-                      value={Math.round(selectedElement[prop] * 10) / 10}
-                      onChange={(e) => upEl({ [prop]: parseFloat(e.target.value) || 0 })} />
-                  </div>
-                ))}
-              </div>
-            </Row>
-
-            {/* Text shadow */}
-            <div className="form-group" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '12px' }}>
-              <div className="toggle-switch-container">
-                <span className="form-label">Sombra de texto</span>
-                <Toggle checked={selectedElement.textShadow} onChange={(v) => upEl({ textShadow: v })} />
-              </div>
-            </div>
-
-            {/* Reference toggle */}
-            <div className="form-group">
-              <div className="toggle-switch-container">
-                <span className="form-label" style={{ fontSize: '10px', textTransform: 'none' }}>Estilo de cita bíblica</span>
-                <Toggle checked={selectedElement.isReference} onChange={(v) => upEl({ isReference: v })} />
-              </div>
-            </div>
-
-            <div style={{ borderTop: '1px solid var(--border-subtle)', marginTop: '4px' }} />
-          </>
-        ) : (
-          <div style={{ padding: '12px', background: 'var(--bg-card)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-disabled)', textAlign: 'center' }}>
-            Haz clic en un elemento del canvas para editarlo, o usa <strong style={{ color: 'var(--text-muted)' }}>+ Texto</strong> para agregar uno.
-          </div>
-        )}
 
         {/* ── BACKGROUND ── */}
         {bg && (

@@ -39,7 +39,6 @@ export default function App() {
   // ── derived ──────────────────────────────────────────────────────────────
   const activeSlideIndex = slides.findIndex((s) => s.id === activeSlideId);
   const activeSlide = activeSlideIndex !== -1 ? slides[activeSlideIndex] : null;
-  const selectedElement = activeSlide?.elements.find((e) => e.id === selectedElId) ?? null;
 
   // ── operator dialog ───────────────────────────────────────────────────────
   const askOperator = (title: string, message: string,
@@ -257,6 +256,16 @@ export default function App() {
             <span className="slide-nav-indicator">{activeSlideIndex + 1} / {slides.length}</span>
             <button className="slide-nav-btn" onClick={handleNextSlide} disabled={activeSlideIndex >= slides.length-1}><ChevronRight size={16}/></button>
           </div>
+
+          {/* Add text element button */}
+          <button
+            className="btn btn-secondary"
+            style={{ fontSize: '12px', padding: '5px 14px', borderRadius: '7px' }}
+            onClick={handleAddTextElement}
+            disabled={!activeSlide}
+          >
+            + Texto
+          </button>
         </div>
 
         {/* Canvas editor */}
@@ -267,7 +276,7 @@ export default function App() {
           customCanvas={customCanvas}
           onSelectElement={setSelectedElId}
           onUpdateElement={handleUpdateElement}
-          onAddTextElement={handleAddTextElement}
+          onDeleteElement={handleDeleteElement}
         />
 
         {/* Filmstrip */}
@@ -304,8 +313,7 @@ export default function App() {
       </div>
 
       <EditorPanel
-        activeSlide={activeSlide} selectedElement={selectedElement}
-        onUpdateElement={handleUpdateElement} onDeleteElement={handleDeleteElement}
+        activeSlide={activeSlide}
         onUpdateBackground={handleUpdateBackground} onApplyBgToAll={handleApplyBgToAll}
         onExportCurrentJpg={handleExportCurrentJpg} onExportAllJpg={handleExportAllJpg}
         onExportPdf={handleExportPdf} onExportPptx={handleExportPptx}
