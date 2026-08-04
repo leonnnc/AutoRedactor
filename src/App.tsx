@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { SermonInputPanel } from './components/SermonInputPanel';
 import { SlidePreview } from './components/SlidePreview';
 import { EditorPanel } from './components/EditorPanel';
-import type { Slide, SlideStyle, ViewportMode, BibleData, BibleVersion, CustomCanvasSize } from './types';
+import type { Slide, SlideStyle, ViewportMode, BibleData, BibleVersion, CustomCanvasSize, TextBlock } from './types';
 import { Monitor, Tablet, Smartphone, ChevronLeft, ChevronRight, AlertTriangle, Plus, Trash2, ChevronUp, ChevronDown, Maximize2 } from 'lucide-react';
 import { parseSermonIntoSlides } from './utils/parseSermon';
 import {
@@ -22,6 +22,9 @@ const DEFAULT_GLOBAL_STYLE: SlideStyle = {
   textAlign: 'center',
   verticalAlign: 'center',
   horizontalAlign: 'center',
+  bold: false,
+  italic: false,
+  uppercase: false,
   textShadow: true,
   textShadowColor: 'rgba(0, 0, 0, 0.75)',
   textShadowBlur: 6,
@@ -29,24 +32,42 @@ const DEFAULT_GLOBAL_STYLE: SlideStyle = {
   backgroundColor: '#1e1b4b',
   backgroundGradient: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%)',
   backgroundImage: '',
+  bgPosition: 'center',
+  bgSize: 'cover',
+  bgBlur: 0,
   overlayOpacity: 0.4,
   overlayColor: '#000000',
+  overlayGradient: false,
+  overlayGradientValue: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 60%)',
+  vignetteOpacity: 0,
+  innerShadow: false,
   paddingX: 15,
   paddingY: 8,
-  bold: false,
-  italic: false,
-  uppercase: false,
   refColor: '#fde047',
   refFontSize: 32,
   refItalic: true,
   refPosition: 'bottom',
 };
 
+const makeDefaultBlock = (): TextBlock => ({
+  id: crypto.randomUUID(),
+  text: '',
+  fontSize: 48,
+  color: '#ffffff',
+  fontFamily: "'Playfair Display', serif",
+  bold: false,
+  italic: false,
+  uppercase: false,
+  textAlign: 'center',
+  textShadow: true,
+});
+
 const makeDefaultSlide = (): Slide => ({
   id: crypto.randomUUID(),
   text: 'Nueva Diapositiva',
   reference: '',
   isVerse: false,
+  extraBlocks: [],
 });
 
 // ─── Operator dialog types ────────────────────────────────────────────────────
@@ -242,6 +263,7 @@ export default function App() {
       text,
       reference,
       isVerse: true,
+      extraBlocks: [],
     };
     setSlides((prev) => [...prev, newSlide]);
     setActiveSlideId(newSlide.id);
@@ -289,6 +311,44 @@ export default function App() {
       setIsExporting(false);
       setExportProgress('');
     }
+  };
+
+  // ─── Extra text blocks ─────────────────────────────────────────────────────
+
+  const handleAddExtraBlock = () => {
+    if (!activeSlideId) return;
+    setSlides((prev) =>
+      prev.map((s) => {
+        if (s.id !== activeSlideId) return s;
+        if (s.extraBlocks.length >= 2) return s; // max 2 extra blocks
+        return { ...s, extraBlocks: [...s.extraBlocks, makeDefaultBlock()] };
+      }),
+    );
+  };
+
+  const handleUpdateExtraBlock = (blockId: string, fields: Partial<TextBlock>) => {
+    if (!activeSlideId) return;
+    setSlides((prev) =>
+      prev.map((s) => {
+        if (s.id !== activeSlideId) return s;
+        return {
+          ...s,
+          extraBlocks: s.extraBlocks.map((b) =>
+            b.id === blockId ? { ...b, ...fields } : b,
+          ),
+        };
+      }),
+    );
+  };
+
+  const handleDeleteExtraBlock = (blockId: string) => {
+    if (!activeSlideId) return;
+    setSlides((prev) =>
+      prev.map((s) => {
+        if (s.id !== activeSlideId) return s;
+        return { ...s, extraBlocks: s.extraBlocks.filter((b) => b.id !== blockId) };
+      }),
+    );
   };
 
   // ─── Export handlers ───────────────────────────────────────────────────────
@@ -512,6 +572,9 @@ export default function App() {
         onChangeGlobalStyle={handleChangeGlobalStyle}
         onChangeSlideStyle={handleChangeSlideStyle}
         onApplyStyleToAll={handleApplyStyleToAll}
+        onAddExtraBlock={handleAddExtraBlock}
+        onUpdateExtraBlock={handleUpdateExtraBlock}
+        onDeleteExtraBlock={handleDeleteExtraBlock}
         onExportCurrentJpg={handleExportCurrentJpg}
         onExportAllJpg={handleExportAllJpg}
         onExportPdf={handleExportPdf}

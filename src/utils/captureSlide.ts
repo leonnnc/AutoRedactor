@@ -16,10 +16,38 @@ export const getViewportDimensions = (mode: ViewportMode, custom?: CustomCanvasS
   }
 };
 
-/**
- * Renders a slide off-screen at full resolution and returns a JPEG data URL.
- * The created DOM node is always removed from the document, even on error.
- */
+const px = (v: number | string) => (typeof v === 'number' ? `${v}px` : v);
+
+const applyTextStyles = (
+  el: HTMLDivElement,
+  opts: {
+    color: string;
+    fontSize: number;
+    fontFamily: string;
+    bold: boolean;
+    italic: boolean;
+    uppercase: boolean;
+    textAlign: string;
+    lineHeight: number | string;
+    textShadow?: string;
+    whiteSpace?: string;
+  },
+) => {
+  Object.assign(el.style, {
+    color: opts.color,
+    fontSize: px(opts.fontSize),
+    fontFamily: opts.fontFamily,
+    fontWeight: opts.bold ? '700' : '400',
+    fontStyle: opts.italic ? 'italic' : 'normal',
+    textTransform: opts.uppercase ? 'uppercase' : 'none',
+    textAlign: opts.textAlign,
+    lineHeight: String(opts.lineHeight),
+    whiteSpace: opts.whiteSpace ?? 'pre-wrap',
+    wordBreak: 'break-word',
+    ...(opts.textShadow ? { textShadow: opts.textShadow } : {}),
+  } as Partial<CSSStyleDeclaration>);
+};
+
 export const captureFullResolutionSlide = async (
   slide: Slide,
   globalStyle: SlideStyle,
@@ -28,13 +56,9 @@ export const captureFullResolutionSlide = async (
 ): Promise<string> => {
   const dims = getViewportDimensions(viewportMode, customCanvas);
 
-  // Merge global and slide-specific style
-  const style: SlideStyle = {
-    ...globalStyle,
-    ...(slide.customStyle ?? {}),
-  };
+  // Merge styles
+  const style: SlideStyle = { ...globalStyle, ...(slide.customStyle ?? {}) };
 
-  // Apply padding logic
   if (slide.customStyle?.paddingX !== undefined) {
     style.paddingX = slide.customStyle.paddingX;
   } else if (globalStyle.paddingX === 15) {
@@ -43,18 +67,20 @@ export const captureFullResolutionSlide = async (
     style.paddingX = globalStyle.paddingX;
   }
 
-  // Off-screen sandbox container
+  const hasBgImage = style.backgroundType === 'image' && !!style.backgroundImage;
+
+  // ── Offscreen container ───────────────────────────────────────────────────
   const container = document.createElement('div');
-  container.style.cssText =
-    'position:absolute;left:-9999px;top:-9999px;';
-  container.style.width = `${dims.width}px`;
-  container.style.height = `${dims.height}px`;
+  container.style.cssText = 'position:absolute;left:-9999px;top:-9999px;overflow:hidden;';
+  container.style.width = px(dims.width);
+  container.style.height = px(dims.height);
   document.body.appendChild(container);
 
+  // ── Slide root ────────────────────────────────────────────────────────────
   const slideEl = document.createElement('div');
   Object.assign(slideEl.style, {
-    width: `${dims.width}px`,
-    height: `${dims.height}px`,
+    width: px(dims.width),
+    height: px(dims.height),
     display: 'flex',
     flexDirection: 'column',
     justifyContent: style.verticalAlign,
@@ -66,6 +92,7 @@ export const captureFullResolutionSlide = async (
     boxSizing: 'border-box',
     position: 'relative',
     overflow: 'hidden',
+    ...(style.innerShadow ? { boxShadow: 'inset 0 0 120px rgba(0,0,0,0.7)' } : {}),
   } as Partial<CSSStyleDeclaration>);
 
   // Background
@@ -73,105 +100,168 @@ export const captureFullResolutionSlide = async (
     slideEl.style.backgroundColor = style.backgroundColor;
   } else if (style.backgroundType === 'gradient') {
     slideEl.style.background = style.backgroundGradient;
-  } else if (style.backgroundType === 'image' && style.backgroundImage) {
-    slideEl.style.backgroundImage = `url(${style.backgroundImage})`;
-    slideEl.style.backgroundSize = 'cover';
-    slideEl.style.backgroundPosition = 'center';
-    slideEl.style.backgroundRepeat = 'no-repeat';
+  } else if (hasBgImage) {
+    if (style.bgBlur > 0) {
+      // Use a separate blurred bg div; slide root stays transparent
+      const bgBlurEl = document.createElement('div');
+      Object.assign(bgBlurEl.style, {
+        position: 'absolute', inset: '0',
+        backgroundImage: `url(${style.backgroundImage})`,
+        backgroundSize: style.bgSize,
+        backgroundPosition: style.bgPosition,
+        backgroundRepeat: 'no-repeat',
+        filter: `blur(${style.bgBlur}px)`,
+        transform: 'scale(1.05)',
+        zIndex: '0',
+      } as Partial<CSSStyleDeclaration>);
+      slideEl.appendChild(bgBlurEl);
+    } else {
+      slideEl.style.backgroundImage = `url(${style.backgroundImage})`;
+      slideEl.style.backgroundSize = style.bgSize;
+      slideEl.style.backgroundPosition = style.bgPosition;
+      slideEl.style.backgroundRepeat = 'no-repeat';
+    }
   }
 
-  // Overlay (image backgrounds only)
-  if (style.backgroundType === 'image' && style.backgroundImage) {
+  // ── Overlay: flat color ───────────────────────────────────────────────────
+  if (hasBgImage || style.backgroundType !== 'solid') {
     const overlay = document.createElement('div');
-    overlay.style.cssText = `
-      position:absolute;inset:0;z-index:1;
-      background-color:${style.overlayColor};
-      opacity:${style.overlayOpacity};
-    `;
+    Object.assign(overlay.style, {
+      position: 'absolute', inset: '0', zIndex: '1',
+      backgroundColor: style.overlayColor,
+      opacity: String(style.overlayOpacity),
+    } as Partial<CSSStyleDeclaration>);
     slideEl.appendChild(overlay);
   }
 
-  // Content wrapper
+  // ── Overlay: gradient ─────────────────────────────────────────────────────
+  if (style.overlayGradient) {
+    const gradOverlay = document.createElement('div');
+    Object.assign(gradOverlay.style, {
+      position: 'absolute', inset: '0', zIndex: '2',
+      background: style.overlayGradientValue,
+    } as Partial<CSSStyleDeclaration>);
+    slideEl.appendChild(gradOverlay);
+  }
+
+  // ── Vignette ──────────────────────────────────────────────────────────────
+  if (style.vignetteOpacity > 0) {
+    const vignette = document.createElement('div');
+    Object.assign(vignette.style, {
+      position: 'absolute', inset: '0', zIndex: '3',
+      background: `radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,${style.vignetteOpacity}) 100%)`,
+    } as Partial<CSSStyleDeclaration>);
+    slideEl.appendChild(vignette);
+  }
+
+  // ── Content wrapper ───────────────────────────────────────────────────────
   const wrapper = document.createElement('div');
   Object.assign(wrapper.style, {
     position: 'relative',
-    zIndex: '2',
+    zIndex: '10',
     width: '100%',
     display: 'flex',
     flexDirection: 'column',
     gap: '24px',
-    textAlign: style.textAlign,
   } as Partial<CSSStyleDeclaration>);
 
-  // Reference element
-  const refDiv = document.createElement('div');
-  refDiv.innerText = slide.reference;
-  Object.assign(refDiv.style, {
-    color: style.refColor,
-    fontSize: `${style.refFontSize}px`,
-    fontFamily: style.fontFamily,
-    fontWeight: '600',
-    fontStyle: style.refItalic ? 'italic' : 'normal',
-    textTransform: 'uppercase',
-    letterSpacing: '1px',
-    ...(style.textShadow && {
-      textShadow: '0 2px 4px rgba(0,0,0,0.5)',
-    }),
-  } as Partial<CSSStyleDeclaration>);
+  const shadowStr = style.textShadow
+    ? `0 ${style.textShadowBlur}px ${style.textShadowBlur * 2}px ${style.textShadowColor}`
+    : undefined;
 
-  // Main text element
-  const textDiv = document.createElement('div');
-  textDiv.innerText = slide.text;
-  Object.assign(textDiv.style, {
+  const refShadowStr = style.textShadow ? '0 2px 4px rgba(0,0,0,0.5)' : undefined;
+
+  // Reference TOP
+  if (style.refPosition === 'top' && slide.reference) {
+    const refEl = document.createElement('div');
+    refEl.innerText = slide.reference;
+    applyTextStyles(refEl, {
+      color: style.refColor,
+      fontSize: style.refFontSize,
+      fontFamily: style.fontFamily,
+      bold: true,
+      italic: style.refItalic,
+      uppercase: true,
+      textAlign: style.textAlign,
+      lineHeight: 1.2,
+      textShadow: refShadowStr,
+      whiteSpace: 'normal',
+    });
+    refEl.style.letterSpacing = '1px';
+    wrapper.appendChild(refEl);
+  }
+
+  // Main text
+  const mainEl = document.createElement('div');
+  mainEl.innerText = slide.text;
+  applyTextStyles(mainEl, {
     color: style.color,
-    fontSize: `${style.fontSize}px`,
-    lineHeight: String(style.lineHeight),
+    fontSize: style.fontSize,
     fontFamily: style.fontFamily,
-    fontWeight: style.bold ? '700' : '400',
-    fontStyle: style.italic ? 'italic' : 'normal',
-    textTransform: style.uppercase ? 'uppercase' : 'none',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-    ...(style.textShadow && {
-      textShadow: `0 ${style.textShadowBlur}px ${style.textShadowBlur * 2}px ${style.textShadowColor}`,
-    }),
-  } as Partial<CSSStyleDeclaration>);
+    bold: style.bold,
+    italic: style.italic,
+    uppercase: style.uppercase,
+    textAlign: style.textAlign,
+    lineHeight: style.lineHeight,
+    textShadow: shadowStr,
+  });
+  wrapper.appendChild(mainEl);
 
-  // Order elements based on reference position
-  if (slide.reference) {
-    if (style.refPosition === 'top') {
-      wrapper.appendChild(refDiv);
-      wrapper.appendChild(textDiv);
-    } else {
-      wrapper.appendChild(textDiv);
-      wrapper.appendChild(refDiv);
-    }
-  } else {
-    wrapper.appendChild(textDiv);
+  // Extra blocks
+  for (const block of slide.extraBlocks) {
+    if (!block.text.trim()) continue;
+    const blockEl = document.createElement('div');
+    blockEl.innerText = block.text;
+    applyTextStyles(blockEl, {
+      color: block.color,
+      fontSize: block.fontSize,
+      fontFamily: block.fontFamily,
+      bold: block.bold,
+      italic: block.italic,
+      uppercase: block.uppercase,
+      textAlign: block.textAlign,
+      lineHeight: 1.4,
+      textShadow: block.textShadow ? shadowStr : undefined,
+    });
+    wrapper.appendChild(blockEl);
+  }
+
+  // Reference BOTTOM
+  if (style.refPosition === 'bottom' && slide.reference) {
+    const refEl = document.createElement('div');
+    refEl.innerText = slide.reference;
+    applyTextStyles(refEl, {
+      color: style.refColor,
+      fontSize: style.refFontSize,
+      fontFamily: style.fontFamily,
+      bold: true,
+      italic: style.refItalic,
+      uppercase: true,
+      textAlign: style.textAlign,
+      lineHeight: 1.2,
+      textShadow: refShadowStr,
+      whiteSpace: 'normal',
+    });
+    refEl.style.letterSpacing = '1px';
+    wrapper.appendChild(refEl);
   }
 
   slideEl.appendChild(wrapper);
   container.appendChild(slideEl);
 
-  // Allow the browser one tick to paint
   await new Promise<void>((resolve) => setTimeout(resolve, 30));
 
   try {
-    const dataUrl = await toJpeg(slideEl, {
+    return await toJpeg(slideEl, {
       width: dims.width,
       height: dims.height,
       quality: 0.95,
     });
-    return dataUrl;
   } finally {
     document.body.removeChild(container);
   }
 };
 
-/**
- * Runs an async task over an array in batches of `batchSize` to avoid
- * saturating the main thread when processing many slides.
- */
 export const processInBatches = async <T, R>(
   items: T[],
   batchSize: number,

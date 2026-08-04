@@ -1,42 +1,82 @@
 // Bible version type - matches versions available in /public/bibles/
 export type BibleVersion = 'rvr1960' | 'nvi' | 'tla' | 'ntv' | 'lbla' | 'dhh' | 'nbla';
 
-export interface SlideStyle {
-  fontSize: number; // in pixels (base desktop size, scaled in preview)
-  lineHeight: number; // multiplier, e.g. 1.4
-  color: string; // text color
-  fontFamily: string; // font family name
-  textAlign: 'left' | 'center' | 'right' | 'justify';
-  verticalAlign: 'flex-start' | 'center' | 'flex-end';
-  horizontalAlign: 'flex-start' | 'center' | 'flex-end';
-  textShadow: boolean;
-  textShadowColor: string;
-  textShadowBlur: number;
-  backgroundType: 'solid' | 'gradient' | 'image';
-  backgroundColor: string;
-  backgroundGradient: string; // linear-gradient CSS string
-  backgroundImage: string; // URL or base64 data
-  overlayOpacity: number; // 0 to 1
-  overlayColor: string; // hex color for background overlay
-  paddingX: number; // horizontal padding in percentage
-  paddingY: number; // vertical padding in percentage
+// ─── Extra text block (2nd and 3rd text on a slide) ──────────────────────────
+
+export interface TextBlock {
+  id: string;
+  text: string;
+  fontSize: number;
+  color: string;
+  fontFamily: string;
   bold: boolean;
   italic: boolean;
   uppercase: boolean;
-  
-  // Reference styling (Bible verses quote styling)
+  textAlign: 'left' | 'center' | 'right' | 'justify';
+  textShadow: boolean;
+}
+
+// ─── Slide style ──────────────────────────────────────────────────────────────
+
+export interface SlideStyle {
+  // ── Typography ──────────────────────────────────────────────────────────────
+  fontSize: number;
+  lineHeight: number;
+  color: string;
+  fontFamily: string;
+  textAlign: 'left' | 'center' | 'right' | 'justify';
+  verticalAlign: 'flex-start' | 'center' | 'flex-end';
+  horizontalAlign: 'flex-start' | 'center' | 'flex-end';
+  bold: boolean;
+  italic: boolean;
+  uppercase: boolean;
+
+  // ── Text shadow ──────────────────────────────────────────────────────────────
+  textShadow: boolean;
+  textShadowColor: string;
+  textShadowBlur: number;
+
+  // ── Background ───────────────────────────────────────────────────────────────
+  backgroundType: 'solid' | 'gradient' | 'image';
+  backgroundColor: string;
+  backgroundGradient: string;
+  backgroundImage: string;
+
+  // Image background controls
+  bgPosition: 'center' | 'top' | 'bottom' | 'left' | 'right';
+  bgSize: 'cover' | 'contain' | 'auto';
+  bgBlur: number;           // 0–20 px blur on the bg image
+
+  // ── Overlay ──────────────────────────────────────────────────────────────────
+  overlayOpacity: number;
+  overlayColor: string;
+  overlayGradient: boolean;                          // use gradient overlay instead of flat
+  overlayGradientValue: string;                      // e.g. "linear-gradient(to top, ...)"
+
+  // ── Slide shadow effects ──────────────────────────────────────────────────────
+  vignetteOpacity: number;  // 0 = off, 0.1–1 = strength of radial dark border
+  innerShadow: boolean;     // inset box-shadow on slide edges
+
+  // ── Padding ──────────────────────────────────────────────────────────────────
+  paddingX: number;
+  paddingY: number;
+
+  // ── Reference (Bible verse citation) ─────────────────────────────────────────
   refColor: string;
   refFontSize: number;
   refItalic: boolean;
   refPosition: 'top' | 'bottom';
 }
 
+// ─── Slide ───────────────────────────────────────────────────────────────────
+
 export interface Slide {
   id: string;
   text: string;
-  reference: string; // e.g. "Juan 3:16"
-  isVerse: boolean;  // whether it's detected/created as a bible verse
-  customStyle?: Partial<SlideStyle>; // optional style override
+  reference: string;
+  isVerse: boolean;
+  extraBlocks: TextBlock[];           // up to 2 additional text blocks
+  customStyle?: Partial<SlideStyle>;
 }
 
 export type ViewportMode = 'desktop' | 'tablet' | 'mobile' | 'custom';
@@ -46,8 +86,10 @@ export interface CustomCanvasSize {
   height: number;
 }
 
+// ─── Bible data ───────────────────────────────────────────────────────────────
+
 export interface BibleChapterItem {
-  type: string; // "verse" | "heading1" | etc.
+  type: string;
   verse_numbers: number[];
   lines: string[];
 }

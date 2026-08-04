@@ -402,6 +402,7 @@ export const parseSermonIntoSlides = async (
               text: chunk,
               reference: `${bookName} ${chapterNum}:${verseStart}-${verseEnd} (${finalVersion.toUpperCase()})`,
               isVerse: true,
+              extraBlocks: [],
             });
           }
         } else {
@@ -412,6 +413,7 @@ export const parseSermonIntoSlides = async (
                 text: chunk,
                 reference: `${bookName} ${chapterNum}:${rv.num} (${finalVersion.toUpperCase()})`,
                 isVerse: true,
+                extraBlocks: [],
               });
             }
           }
@@ -450,6 +452,7 @@ export const parseSermonIntoSlides = async (
             text: chunk,
             reference: `${bookName} ${chapterNum}:${verseStart} (${finalVersion.toUpperCase()})`,
             isVerse: true,
+            extraBlocks: [],
           });
         }
       }
@@ -461,6 +464,7 @@ export const parseSermonIntoSlides = async (
           text: chunk,
           reference: '',
           isVerse: false,
+          extraBlocks: [],
         });
       }
     }

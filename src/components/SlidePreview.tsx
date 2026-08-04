@@ -36,13 +36,14 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
     );
   }
 
-  // Merge global styles with slide-specific overrides if they exist
+  // Merge global + slide-specific overrides
   const style: SlideStyle = {
     ...globalStyle,
-    ...(slide.customStyle || {}),
+    ...(slide.customStyle ?? {}),
   };
 
-  if (slide.customStyle && slide.customStyle.paddingX !== undefined) {
+  // Padding resolution
+  if (slide.customStyle?.paddingX !== undefined) {
     style.paddingX = slide.customStyle.paddingX;
   } else if (globalStyle.paddingX === 15) {
     style.paddingX = slide.isVerse ? 18 : 10;
@@ -50,24 +51,13 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
     style.paddingX = globalStyle.paddingX;
   }
 
-  const dimensions = getPreviewDimensions(viewportMode, customCanvas);
-  
-  // Outer wrapper container size
-  const wrapperStyle: React.CSSProperties = {
-    width: `${dimensions.width * dimensions.scale}px`,
-    height: `${dimensions.height * dimensions.scale}px`,
-    position: 'relative',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  };
+  const dims = getPreviewDimensions(viewportMode, customCanvas);
 
-  // Full-resolution slide element (1920x1080, 1024x768, or 1080x1920)
+  // ── Slide root ────────────────────────────────────────────────────────────
   const slideStyle: React.CSSProperties = {
-    width: `${dimensions.width}px`,
-    height: `${dimensions.height}px`,
-    transform: `scale(${dimensions.scale})`,
+    width: `${dims.width}px`,
+    height: `${dims.height}px`,
+    transform: `scale(${dims.scale})`,
     transformOrigin: 'center center',
     position: 'absolute',
     display: 'flex',
@@ -81,8 +71,11 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
     boxSizing: 'border-box',
     overflow: 'hidden',
     transition: 'background 0.3s ease',
-    
-    // Background style
+    // inner shadow effect
+    ...(style.innerShadow && {
+      boxShadow: 'inset 0 0 120px rgba(0,0,0,0.7)',
+    }),
+    // background
     ...(style.backgroundType === 'solid' && {
       backgroundColor: style.backgroundColor,
       backgroundImage: 'none',
@@ -92,38 +85,43 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
     }),
     ...(style.backgroundType === 'image' && style.backgroundImage && {
       backgroundImage: `url(${style.backgroundImage})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
+      backgroundSize: style.bgSize,
+      backgroundPosition: style.bgPosition,
       backgroundRepeat: 'no-repeat',
     }),
   };
 
-  // Overlay for image background to improve readability
+  // ── Layers ────────────────────────────────────────────────────────────────
+
+  // Background image blur layer (separate div so blur doesn't affect text)
+  const hasBgImage = style.backgroundType === 'image' && !!style.backgroundImage;
+  const hasBgBlur = hasBgImage && style.bgBlur > 0;
+
+  // Flat color overlay
   const overlayStyle: React.CSSProperties = {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    position: 'absolute', inset: 0, zIndex: 1,
     backgroundColor: style.overlayColor,
     opacity: style.overlayOpacity,
-    zIndex: 1,
-    transition: 'opacity 0.2s ease',
+    pointerEvents: 'none',
   };
 
-  // Content wrapper (above background & overlay)
-  const contentWrapperStyle: React.CSSProperties = {
-    position: 'relative',
-    zIndex: 2,
-    width: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '24px',
-    textAlign: style.textAlign,
+  // Gradient overlay (over the flat overlay)
+  const gradientOverlayStyle: React.CSSProperties = {
+    position: 'absolute', inset: 0, zIndex: 2,
+    background: style.overlayGradientValue,
+    pointerEvents: 'none',
   };
 
-  // Main text styling
-  const textStyle: React.CSSProperties = {
+  // Vignette — radial dark border
+  const vignetteStyle: React.CSSProperties = {
+    position: 'absolute', inset: 0, zIndex: 3,
+    background: `radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,${style.vignetteOpacity}) 100%)`,
+    pointerEvents: 'none',
+  };
+
+  // ── Text helpers ──────────────────────────────────────────────────────────
+
+  const mainTextStyle: React.CSSProperties = {
     color: style.color,
     fontSize: `${style.fontSize}px`,
     lineHeight: style.lineHeight,
@@ -131,15 +129,15 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
     fontWeight: style.bold ? '700' : '400',
     fontStyle: style.italic ? 'italic' : 'normal',
     textTransform: style.uppercase ? 'uppercase' : 'none',
-    transition: 'all 0.1s ease',
+    textAlign: style.textAlign,
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
+    transition: 'all 0.1s ease',
     ...(style.textShadow && {
       textShadow: `0 ${style.textShadowBlur}px ${style.textShadowBlur * 2}px ${style.textShadowColor}`,
     }),
   };
 
-  // Reference (Bible quote reference) styling
   const referenceStyle: React.CSSProperties = {
     color: style.refColor,
     fontSize: `${style.refFontSize}px`,
@@ -149,33 +147,94 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
     textTransform: 'uppercase',
     letterSpacing: '1px',
     opacity: 0.9,
+    textAlign: style.textAlign,
     ...(style.textShadow && {
-      textShadow: `0 2px 4px rgba(0,0,0,0.5)`,
+      textShadow: '0 2px 4px rgba(0,0,0,0.5)',
     }),
+  };
+
+  const contentWrapperStyle: React.CSSProperties = {
+    position: 'relative',
+    zIndex: 10,
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '24px',
   };
 
   return (
     <div className="canvas-area">
-      <div className="slide-container-wrapper" style={wrapperStyle}>
-        {/* The high-res DOM node that html-to-image will capture */}
-        <div 
-          ref={canvasRef} 
-          id="capture-slide-node" 
-          style={slideStyle}
-        >
-          {style.backgroundType === 'image' && style.backgroundImage && (
+      <div
+        className="slide-container-wrapper"
+        style={{
+          width: `${dims.width * dims.scale}px`,
+          height: `${dims.height * dims.scale}px`,
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+        }}
+      >
+        <div ref={canvasRef} id="capture-slide-node" style={slideStyle}>
+
+          {/* ── Background blur pseudo-layer ── */}
+          {hasBgBlur && (
+            <div style={{
+              position: 'absolute', inset: 0, zIndex: 0,
+              backgroundImage: `url(${style.backgroundImage})`,
+              backgroundSize: style.bgSize,
+              backgroundPosition: style.bgPosition,
+              backgroundRepeat: 'no-repeat',
+              filter: `blur(${style.bgBlur}px)`,
+              transform: 'scale(1.05)', // hide blur edges
+              pointerEvents: 'none',
+            }} />
+          )}
+
+          {/* ── Overlays ── */}
+          {(hasBgImage || style.backgroundType !== 'solid') && (
             <div style={overlayStyle} />
           )}
-          
+          {style.overlayGradient && (
+            <div style={gradientOverlayStyle} />
+          )}
+          {style.vignetteOpacity > 0 && (
+            <div style={vignetteStyle} />
+          )}
+
+          {/* ── Content ── */}
           <div style={contentWrapperStyle}>
             {style.refPosition === 'top' && slide.reference && (
               <div style={referenceStyle}>{slide.reference}</div>
             )}
-            
-            <div style={textStyle}>
-              {slide.text}
-            </div>
-            
+
+            <div style={mainTextStyle}>{slide.text}</div>
+
+            {/* Extra text blocks */}
+            {slide.extraBlocks.map((block) => (
+              <div
+                key={block.id}
+                style={{
+                  color: block.color,
+                  fontSize: `${block.fontSize}px`,
+                  fontFamily: block.fontFamily,
+                  fontWeight: block.bold ? '700' : '400',
+                  fontStyle: block.italic ? 'italic' : 'normal',
+                  textTransform: block.uppercase ? 'uppercase' : 'none',
+                  textAlign: block.textAlign,
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  lineHeight: 1.4,
+                  ...(block.textShadow && {
+                    textShadow: `0 ${style.textShadowBlur}px ${style.textShadowBlur * 2}px ${style.textShadowColor}`,
+                  }),
+                }}
+              >
+                {block.text}
+              </div>
+            ))}
+
             {style.refPosition === 'bottom' && slide.reference && (
               <div style={referenceStyle}>{slide.reference}</div>
             )}
