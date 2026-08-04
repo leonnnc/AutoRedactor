@@ -979,3 +979,114 @@ body {
 .filmstrip-scroll .slide-thumb-card:hover .slide-thumb-delete {
   opacity: 1;
 }
+
+/* ─── Canvas Editor v2.5.0 ───────────────────────────────────────────────── */
+
+/* Canvas area stretches to fill workspace, centering the slide */
+.canvas-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  overflow: auto;
+  position: relative;
+  /* Subtle dot-grid so the canvas feels like a design tool */
+  background-image:
+    radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+    radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+}
+
+/* The scaled slide wrapper — shadow + rounded corners */
+.canvas-editor-slide {
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: default;
+}
+
+/* Toolbar floating above canvas */
+.canvas-toolbar {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  gap: 6px;
+  background: rgba(19,19,26,0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 5px 10px;
+}
+
+/* Resize handle dots */
+.resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  border: 2px solid var(--accent-primary);
+  border-radius: 2px;
+  z-index: 100;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+
+.resize-handle:hover {
+  background: var(--accent-primary);
+  transform: scale(1.25);
+}
+
+/* Element selection ring */
+.canvas-element-selected {
+  outline: 2px solid var(--accent-primary) !important;
+  outline-offset: 1px;
+}
+
+/* Inline text editor inside canvas */
+.canvas-inline-editor {
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.55);
+  border: 2px solid var(--accent-primary);
+  border-radius: 4px;
+  padding: 6px;
+  resize: none;
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+/* Cursor variants for element interactions */
+.cursor-move   { cursor: move; }
+.cursor-text   { cursor: text; }
+.cursor-crosshair { cursor: crosshair; }
+
+/* Empty canvas placeholder text */
+.canvas-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-disabled);
+  font-size: 13px;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ─── Slide container wrapper (used by SlidePreview read-only) ─── */
+.slide-container-wrapper {
+  box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}

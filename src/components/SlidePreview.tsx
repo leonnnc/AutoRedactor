@@ -1,19 +1,23 @@
+/**
+ * SlidePreview — read-only render of a slide (no drag handles).
+ * Used in the filmstrip thumbnails. The live editor uses CanvasEditor instead.
+ */
 import React from 'react';
-import type { Slide, SlideStyle, ViewportMode, CustomCanvasSize } from '../types';
+import type { Slide, ViewportMode, CustomCanvasSize } from '../types';
 import { getViewportDimensions } from '../utils/captureSlide';
 
 interface SlidePreviewProps {
   slide: Slide | null;
-  globalStyle: SlideStyle;
   viewportMode: ViewportMode;
   customCanvas?: CustomCanvasSize;
-  canvasRef: React.RefObject<HTMLDivElement | null>;
+  /** Optional ref forwarded to the inner slide div (for legacy compat) */
+  canvasRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-const getPreviewDimensions = (mode: ViewportMode, custom?: CustomCanvasSize) => {
+export const getPreviewDimensions = (mode: ViewportMode, custom?: CustomCanvasSize) => {
   if (mode === 'custom' && custom) {
-    const maxPreviewW = 960;
-    const scale = Math.min(1, maxPreviewW / custom.width);
+    const maxW = 960;
+    const scale = Math.min(1, maxW / custom.width);
     return { width: custom.width, height: custom.height, scale };
   }
   return getViewportDimensions(mode, custom);
@@ -21,7 +25,6 @@ const getPreviewDimensions = (mode: ViewportMode, custom?: CustomCanvasSize) => 
 
 export const SlidePreview: React.FC<SlidePreviewProps> = ({
   slide,
-  globalStyle,
   viewportMode,
   customCanvas,
   canvasRef,
@@ -30,136 +33,40 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
     return (
       <div className="canvas-area">
         <div style={{ color: 'var(--text-muted)', fontSize: '15px' }}>
-          Selecciona o crea una diapositiva para previsualizar
+          Selecciona o crea una diapositiva
         </div>
       </div>
     );
   }
 
-  // Merge global + slide-specific overrides
-  const style: SlideStyle = {
-    ...globalStyle,
-    ...(slide.customStyle ?? {}),
-  };
-
-  // Padding resolution
-  if (slide.customStyle?.paddingX !== undefined) {
-    style.paddingX = slide.customStyle.paddingX;
-  } else if (globalStyle.paddingX === 15) {
-    style.paddingX = slide.isVerse ? 18 : 10;
-  } else {
-    style.paddingX = globalStyle.paddingX;
-  }
-
   const dims = getPreviewDimensions(viewportMode, customCanvas);
+  const bg = slide.background;
+  const hasBgImage = bg.backgroundType === 'image' && !!bg.backgroundImage;
 
-  // ── Slide root ────────────────────────────────────────────────────────────
+  // ── background root style ──────────────────────────────────────────────────
+  const bgStyle: React.CSSProperties = (() => {
+    if (bg.backgroundType === 'solid') return { backgroundColor: bg.backgroundColor };
+    if (bg.backgroundType === 'gradient') return { background: bg.backgroundGradient };
+    if (hasBgImage && bg.bgBlur === 0) {
+      return {
+        backgroundImage: `url(${bg.backgroundImage})`,
+        backgroundSize: bg.bgSize,
+        backgroundPosition: bg.bgPosition,
+        backgroundRepeat: 'no-repeat',
+      };
+    }
+    return { backgroundColor: '#0f172a' };
+  })();
+
   const slideStyle: React.CSSProperties = {
     width: `${dims.width}px`,
     height: `${dims.height}px`,
     transform: `scale(${dims.scale})`,
     transformOrigin: 'center center',
     position: 'absolute',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: style.verticalAlign,
-    alignItems: style.horizontalAlign,
-    paddingLeft: `${style.paddingX}%`,
-    paddingRight: `${style.paddingX}%`,
-    paddingTop: `${style.paddingY}%`,
-    paddingBottom: `${style.paddingY}%`,
-    boxSizing: 'border-box',
     overflow: 'hidden',
-    transition: 'background 0.3s ease',
-    // inner shadow effect
-    ...(style.innerShadow && {
-      boxShadow: 'inset 0 0 120px rgba(0,0,0,0.7)',
-    }),
-    // background
-    ...(style.backgroundType === 'solid' && {
-      backgroundColor: style.backgroundColor,
-      backgroundImage: 'none',
-    }),
-    ...(style.backgroundType === 'gradient' && {
-      background: style.backgroundGradient,
-    }),
-    ...(style.backgroundType === 'image' && style.backgroundImage && {
-      backgroundImage: `url(${style.backgroundImage})`,
-      backgroundSize: style.bgSize,
-      backgroundPosition: style.bgPosition,
-      backgroundRepeat: 'no-repeat',
-    }),
-  };
-
-  // ── Layers ────────────────────────────────────────────────────────────────
-
-  // Background image blur layer (separate div so blur doesn't affect text)
-  const hasBgImage = style.backgroundType === 'image' && !!style.backgroundImage;
-  const hasBgBlur = hasBgImage && style.bgBlur > 0;
-
-  // Flat color overlay
-  const overlayStyle: React.CSSProperties = {
-    position: 'absolute', inset: 0, zIndex: 1,
-    backgroundColor: style.overlayColor,
-    opacity: style.overlayOpacity,
-    pointerEvents: 'none',
-  };
-
-  // Gradient overlay (over the flat overlay)
-  const gradientOverlayStyle: React.CSSProperties = {
-    position: 'absolute', inset: 0, zIndex: 2,
-    background: style.overlayGradientValue,
-    pointerEvents: 'none',
-  };
-
-  // Vignette — radial dark border
-  const vignetteStyle: React.CSSProperties = {
-    position: 'absolute', inset: 0, zIndex: 3,
-    background: `radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,${style.vignetteOpacity}) 100%)`,
-    pointerEvents: 'none',
-  };
-
-  // ── Text helpers ──────────────────────────────────────────────────────────
-
-  const mainTextStyle: React.CSSProperties = {
-    color: style.color,
-    fontSize: `${style.fontSize}px`,
-    lineHeight: style.lineHeight,
-    fontFamily: style.fontFamily,
-    fontWeight: style.bold ? '700' : '400',
-    fontStyle: style.italic ? 'italic' : 'normal',
-    textTransform: style.uppercase ? 'uppercase' : 'none',
-    textAlign: style.textAlign,
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-    transition: 'all 0.1s ease',
-    ...(style.textShadow && {
-      textShadow: `0 ${style.textShadowBlur}px ${style.textShadowBlur * 2}px ${style.textShadowColor}`,
-    }),
-  };
-
-  const referenceStyle: React.CSSProperties = {
-    color: style.refColor,
-    fontSize: `${style.refFontSize}px`,
-    fontFamily: style.fontFamily,
-    fontWeight: '600',
-    fontStyle: style.refItalic ? 'italic' : 'normal',
-    textTransform: 'uppercase',
-    letterSpacing: '1px',
-    opacity: 0.9,
-    textAlign: style.textAlign,
-    ...(style.textShadow && {
-      textShadow: '0 2px 4px rgba(0,0,0,0.5)',
-    }),
-  };
-
-  const contentWrapperStyle: React.CSSProperties = {
-    position: 'relative',
-    zIndex: 10,
-    width: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '24px',
+    ...(bg.innerShadow ? { boxShadow: 'inset 0 0 120px rgba(0,0,0,0.7)' } : {}),
+    ...bgStyle,
   };
 
   return (
@@ -178,67 +85,95 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
       >
         <div ref={canvasRef} id="capture-slide-node" style={slideStyle}>
 
-          {/* ── Background blur pseudo-layer ── */}
-          {hasBgBlur && (
+          {/* BG blur layer */}
+          {hasBgImage && bg.bgBlur > 0 && (
             <div style={{
               position: 'absolute', inset: 0, zIndex: 0,
-              backgroundImage: `url(${style.backgroundImage})`,
-              backgroundSize: style.bgSize,
-              backgroundPosition: style.bgPosition,
+              backgroundImage: `url(${bg.backgroundImage})`,
+              backgroundSize: bg.bgSize,
+              backgroundPosition: bg.bgPosition,
               backgroundRepeat: 'no-repeat',
-              filter: `blur(${style.bgBlur}px)`,
-              transform: 'scale(1.05)', // hide blur edges
+              filter: `blur(${bg.bgBlur}px)`,
+              transform: 'scale(1.05)',
               pointerEvents: 'none',
             }} />
           )}
 
-          {/* ── Overlays ── */}
-          {(hasBgImage || style.backgroundType !== 'solid') && (
-            <div style={overlayStyle} />
-          )}
-          {style.overlayGradient && (
-            <div style={gradientOverlayStyle} />
-          )}
-          {style.vignetteOpacity > 0 && (
-            <div style={vignetteStyle} />
+          {/* Flat overlay */}
+          {(hasBgImage || bg.backgroundType !== 'solid') && (
+            <div style={{
+              position: 'absolute', inset: 0, zIndex: 1,
+              backgroundColor: bg.overlayColor,
+              opacity: bg.overlayOpacity,
+              pointerEvents: 'none',
+            }} />
           )}
 
-          {/* ── Content ── */}
-          <div style={contentWrapperStyle}>
-            {style.refPosition === 'top' && slide.reference && (
-              <div style={referenceStyle}>{slide.reference}</div>
-            )}
+          {/* Gradient overlay */}
+          {bg.overlayGradient && (
+            <div style={{
+              position: 'absolute', inset: 0, zIndex: 2,
+              background: bg.overlayGradientValue,
+              pointerEvents: 'none',
+            }} />
+          )}
 
-            <div style={mainTextStyle}>{slide.text}</div>
+          {/* Vignette */}
+          {bg.vignetteOpacity > 0 && (
+            <div style={{
+              position: 'absolute', inset: 0, zIndex: 3,
+              background: `radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,${bg.vignetteOpacity}) 100%)`,
+              pointerEvents: 'none',
+            }} />
+          )}
 
-            {/* Extra text blocks */}
-            {slide.extraBlocks.map((block) => (
+          {/* Elements */}
+          {slide.elements.map((el) => {
+            const shadowStr = el.textShadow
+              ? `0 ${bg.textShadowBlur}px ${bg.textShadowBlur * 2}px ${bg.textShadowColor}`
+              : undefined;
+
+            return (
               <div
-                key={block.id}
+                key={el.id}
                 style={{
-                  color: block.color,
-                  fontSize: `${block.fontSize}px`,
-                  fontFamily: block.fontFamily,
-                  fontWeight: block.bold ? '700' : '400',
-                  fontStyle: block.italic ? 'italic' : 'normal',
-                  textTransform: block.uppercase ? 'uppercase' : 'none',
-                  textAlign: block.textAlign,
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  lineHeight: 1.4,
-                  ...(block.textShadow && {
-                    textShadow: `0 ${style.textShadowBlur}px ${style.textShadowBlur * 2}px ${style.textShadowColor}`,
-                  }),
+                  position: 'absolute',
+                  left: `${el.x}%`,
+                  top: `${el.y}%`,
+                  width: `${el.w}%`,
+                  height: `${el.h}%`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
                 }}
               >
-                {block.text}
+                <div style={{
+                  width: '100%',
+                  color: el.color,
+                  fontSize: `${el.fontSize * dims.scale}px`,
+                  fontFamily: el.fontFamily,
+                  fontWeight: el.bold ? '700' : '400',
+                  fontStyle: el.italic ? 'italic' : 'normal',
+                  textTransform: el.uppercase ? 'uppercase' : 'none',
+                  textAlign: el.textAlign,
+                  lineHeight: el.lineHeight,
+                  opacity: el.opacity,
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  ...(el.rotation !== 0 ? { transform: `rotate(${el.rotation}deg)` } : {}),
+                  ...(shadowStr ? { textShadow: shadowStr } : {}),
+                  ...(el.isReference ? {
+                    fontSize: `${el.fontSize * dims.scale * 0.55}px`,
+                    letterSpacing: '1px',
+                    fontWeight: '600',
+                  } : {}),
+                }}>
+                  {el.text}
+                </div>
               </div>
-            ))}
-
-            {style.refPosition === 'bottom' && slide.reference && (
-              <div style={referenceStyle}>{slide.reference}</div>
-            )}
-          </div>
+            );
+          })}
         </div>
       </div>
     </div>

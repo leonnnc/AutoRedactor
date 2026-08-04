@@ -1,266 +1,169 @@
 import { toJpeg } from 'html-to-image';
-import type { Slide, SlideStyle, ViewportMode, CustomCanvasSize } from '../types';
+import type { Slide, ViewportMode, CustomCanvasSize } from '../types';
+
+// ─── Dimensions ────────────────────────────────────────────────────────────────
 
 export const getViewportDimensions = (mode: ViewportMode, custom?: CustomCanvasSize) => {
   if (mode === 'custom' && custom) {
     return { width: custom.width, height: custom.height, scale: 1 };
   }
   switch (mode) {
-    case 'tablet':
-      return { width: 1024, height: 768, scale: 0.703125 };
-    case 'mobile':
-      return { width: 1080, height: 1920, scale: 0.28125 };
+    case 'tablet':  return { width: 1024,  height: 768,  scale: 0.703125 };
+    case 'mobile':  return { width: 1080,  height: 1920, scale: 0.28125  };
     case 'desktop':
-    default:
-      return { width: 1920, height: 1080, scale: 0.5 };
+    default:        return { width: 1920,  height: 1080, scale: 0.5      };
   }
 };
 
-const px = (v: number | string) => (typeof v === 'number' ? `${v}px` : v);
+const px = (v: number) => `${v}px`;
 
-const applyTextStyles = (
-  el: HTMLDivElement,
-  opts: {
-    color: string;
-    fontSize: number;
-    fontFamily: string;
-    bold: boolean;
-    italic: boolean;
-    uppercase: boolean;
-    textAlign: string;
-    lineHeight: number | string;
-    textShadow?: string;
-    whiteSpace?: string;
-  },
-) => {
-  Object.assign(el.style, {
-    color: opts.color,
-    fontSize: px(opts.fontSize),
-    fontFamily: opts.fontFamily,
-    fontWeight: opts.bold ? '700' : '400',
-    fontStyle: opts.italic ? 'italic' : 'normal',
-    textTransform: opts.uppercase ? 'uppercase' : 'none',
-    textAlign: opts.textAlign,
-    lineHeight: String(opts.lineHeight),
-    whiteSpace: opts.whiteSpace ?? 'pre-wrap',
-    wordBreak: 'break-word',
-    ...(opts.textShadow ? { textShadow: opts.textShadow } : {}),
-  } as Partial<CSSStyleDeclaration>);
-};
+// ─── Full-resolution off-screen renderer ─────────────────────────────────────
 
 export const captureFullResolutionSlide = async (
   slide: Slide,
-  globalStyle: SlideStyle,
+  _globalStyle: unknown,           // kept for API compat, ignored
   viewportMode: ViewportMode,
   customCanvas?: CustomCanvasSize,
 ): Promise<string> => {
   const dims = getViewportDimensions(viewportMode, customCanvas);
+  const bg = slide.background;
+  const hasBgImage = bg.backgroundType === 'image' && !!bg.backgroundImage;
 
-  // Merge styles
-  const style: SlideStyle = { ...globalStyle, ...(slide.customStyle ?? {}) };
-
-  if (slide.customStyle?.paddingX !== undefined) {
-    style.paddingX = slide.customStyle.paddingX;
-  } else if (globalStyle.paddingX === 15) {
-    style.paddingX = slide.isVerse ? 18 : 10;
-  } else {
-    style.paddingX = globalStyle.paddingX;
-  }
-
-  const hasBgImage = style.backgroundType === 'image' && !!style.backgroundImage;
-
-  // ── Offscreen container ───────────────────────────────────────────────────
+  // ── Off-screen container ────────────────────────────────────────────────────
   const container = document.createElement('div');
-  container.style.cssText = 'position:absolute;left:-9999px;top:-9999px;overflow:hidden;';
-  container.style.width = px(dims.width);
-  container.style.height = px(dims.height);
+  container.style.cssText = `position:absolute;left:-9999px;top:-9999px;overflow:hidden;width:${px(dims.width)};height:${px(dims.height)};`;
   document.body.appendChild(container);
 
-  // ── Slide root ────────────────────────────────────────────────────────────
-  const slideEl = document.createElement('div');
-  Object.assign(slideEl.style, {
+  // ── Slide root ──────────────────────────────────────────────────────────────
+  const root = document.createElement('div');
+  Object.assign(root.style, {
     width: px(dims.width),
     height: px(dims.height),
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: style.verticalAlign,
-    alignItems: style.horizontalAlign,
-    paddingLeft: `${style.paddingX}%`,
-    paddingRight: `${style.paddingX}%`,
-    paddingTop: `${style.paddingY}%`,
-    paddingBottom: `${style.paddingY}%`,
-    boxSizing: 'border-box',
     position: 'relative',
     overflow: 'hidden',
-    ...(style.innerShadow ? { boxShadow: 'inset 0 0 120px rgba(0,0,0,0.7)' } : {}),
+    boxSizing: 'border-box',
   } as Partial<CSSStyleDeclaration>);
 
   // Background
-  if (style.backgroundType === 'solid') {
-    slideEl.style.backgroundColor = style.backgroundColor;
-  } else if (style.backgroundType === 'gradient') {
-    slideEl.style.background = style.backgroundGradient;
+  if (bg.backgroundType === 'solid') {
+    root.style.backgroundColor = bg.backgroundColor;
+  } else if (bg.backgroundType === 'gradient') {
+    root.style.background = bg.backgroundGradient;
   } else if (hasBgImage) {
-    if (style.bgBlur > 0) {
-      // Use a separate blurred bg div; slide root stays transparent
-      const bgBlurEl = document.createElement('div');
-      Object.assign(bgBlurEl.style, {
-        position: 'absolute', inset: '0',
-        backgroundImage: `url(${style.backgroundImage})`,
-        backgroundSize: style.bgSize,
-        backgroundPosition: style.bgPosition,
+    if (bg.bgBlur > 0) {
+      const blurEl = document.createElement('div');
+      Object.assign(blurEl.style, {
+        position: 'absolute', inset: '0', zIndex: '0',
+        backgroundImage: `url(${bg.backgroundImage})`,
+        backgroundSize: bg.bgSize,
+        backgroundPosition: bg.bgPosition,
         backgroundRepeat: 'no-repeat',
-        filter: `blur(${style.bgBlur}px)`,
+        filter: `blur(${bg.bgBlur}px)`,
         transform: 'scale(1.05)',
-        zIndex: '0',
       } as Partial<CSSStyleDeclaration>);
-      slideEl.appendChild(bgBlurEl);
+      root.appendChild(blurEl);
     } else {
-      slideEl.style.backgroundImage = `url(${style.backgroundImage})`;
-      slideEl.style.backgroundSize = style.bgSize;
-      slideEl.style.backgroundPosition = style.bgPosition;
-      slideEl.style.backgroundRepeat = 'no-repeat';
+      root.style.backgroundImage = `url(${bg.backgroundImage})`;
+      root.style.backgroundSize = bg.bgSize;
+      root.style.backgroundPosition = bg.bgPosition;
+      root.style.backgroundRepeat = 'no-repeat';
     }
   }
 
-  // ── Overlay: flat color ───────────────────────────────────────────────────
-  if (hasBgImage || style.backgroundType !== 'solid') {
+  if (bg.innerShadow) {
+    root.style.boxShadow = 'inset 0 0 120px rgba(0,0,0,0.7)';
+  }
+
+  // Flat overlay
+  if (hasBgImage || bg.backgroundType !== 'solid') {
     const overlay = document.createElement('div');
     Object.assign(overlay.style, {
       position: 'absolute', inset: '0', zIndex: '1',
-      backgroundColor: style.overlayColor,
-      opacity: String(style.overlayOpacity),
+      backgroundColor: bg.overlayColor,
+      opacity: String(bg.overlayOpacity),
     } as Partial<CSSStyleDeclaration>);
-    slideEl.appendChild(overlay);
+    root.appendChild(overlay);
   }
 
-  // ── Overlay: gradient ─────────────────────────────────────────────────────
-  if (style.overlayGradient) {
+  // Gradient overlay
+  if (bg.overlayGradient) {
     const gradOverlay = document.createElement('div');
     Object.assign(gradOverlay.style, {
       position: 'absolute', inset: '0', zIndex: '2',
-      background: style.overlayGradientValue,
+      background: bg.overlayGradientValue,
     } as Partial<CSSStyleDeclaration>);
-    slideEl.appendChild(gradOverlay);
+    root.appendChild(gradOverlay);
   }
 
-  // ── Vignette ──────────────────────────────────────────────────────────────
-  if (style.vignetteOpacity > 0) {
+  // Vignette
+  if (bg.vignetteOpacity > 0) {
     const vignette = document.createElement('div');
     Object.assign(vignette.style, {
       position: 'absolute', inset: '0', zIndex: '3',
-      background: `radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,${style.vignetteOpacity}) 100%)`,
+      background: `radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,${bg.vignetteOpacity}) 100%)`,
     } as Partial<CSSStyleDeclaration>);
-    slideEl.appendChild(vignette);
+    root.appendChild(vignette);
   }
 
-  // ── Content wrapper ───────────────────────────────────────────────────────
-  const wrapper = document.createElement('div');
-  Object.assign(wrapper.style, {
-    position: 'relative',
-    zIndex: '10',
-    width: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '24px',
-  } as Partial<CSSStyleDeclaration>);
+  // ── Elements ────────────────────────────────────────────────────────────────
+  for (const el of slide.elements) {
+    if (!el.text.trim()) continue;
 
-  const shadowStr = style.textShadow
-    ? `0 ${style.textShadowBlur}px ${style.textShadowBlur * 2}px ${style.textShadowColor}`
-    : undefined;
+    const wrapper = document.createElement('div');
+    Object.assign(wrapper.style, {
+      position: 'absolute',
+      left: `${el.x}%`,
+      top: `${el.y}%`,
+      width: `${el.w}%`,
+      height: `${el.h}%`,
+      zIndex: '10',
+      display: 'flex',
+      alignItems: 'center',
+      overflow: 'hidden',
+      boxSizing: 'border-box',
+    } as Partial<CSSStyleDeclaration>);
 
-  const refShadowStr = style.textShadow ? '0 2px 4px rgba(0,0,0,0.5)' : undefined;
+    const shadowStr = el.textShadow
+      ? `0 ${bg.textShadowBlur}px ${bg.textShadowBlur * 2}px ${bg.textShadowColor}`
+      : undefined;
 
-  // Reference TOP
-  if (style.refPosition === 'top' && slide.reference) {
-    const refEl = document.createElement('div');
-    refEl.innerText = slide.reference;
-    applyTextStyles(refEl, {
-      color: style.refColor,
-      fontSize: style.refFontSize,
-      fontFamily: style.fontFamily,
-      bold: true,
-      italic: style.refItalic,
-      uppercase: true,
-      textAlign: style.textAlign,
-      lineHeight: 1.2,
-      textShadow: refShadowStr,
-      whiteSpace: 'normal',
-    });
-    refEl.style.letterSpacing = '1px';
-    wrapper.appendChild(refEl);
+    const inner = document.createElement('div');
+    Object.assign(inner.style, {
+      width: '100%',
+      color: el.color,
+      fontSize: px(el.isReference ? el.fontSize * 0.55 : el.fontSize),
+      fontFamily: el.fontFamily,
+      fontWeight: el.bold ? '700' : '400',
+      fontStyle: el.italic ? 'italic' : 'normal',
+      textTransform: el.uppercase ? 'uppercase' : 'none',
+      textAlign: el.textAlign,
+      lineHeight: String(el.lineHeight),
+      opacity: String(el.opacity),
+      whiteSpace: 'pre-wrap',
+      wordBreak: 'break-word',
+      ...(el.isReference ? { letterSpacing: '1px' } : {}),
+      ...(el.rotation !== 0 ? { transform: `rotate(${el.rotation}deg)` } : {}),
+      ...(shadowStr ? { textShadow: shadowStr } : {}),
+    } as Partial<CSSStyleDeclaration>);
+
+    inner.innerText = el.text;
+    wrapper.appendChild(inner);
+    root.appendChild(wrapper);
   }
 
-  // Main text
-  const mainEl = document.createElement('div');
-  mainEl.innerText = slide.text;
-  applyTextStyles(mainEl, {
-    color: style.color,
-    fontSize: style.fontSize,
-    fontFamily: style.fontFamily,
-    bold: style.bold,
-    italic: style.italic,
-    uppercase: style.uppercase,
-    textAlign: style.textAlign,
-    lineHeight: style.lineHeight,
-    textShadow: shadowStr,
-  });
-  wrapper.appendChild(mainEl);
+  container.appendChild(root);
 
-  // Extra blocks
-  for (const block of slide.extraBlocks) {
-    if (!block.text.trim()) continue;
-    const blockEl = document.createElement('div');
-    blockEl.innerText = block.text;
-    applyTextStyles(blockEl, {
-      color: block.color,
-      fontSize: block.fontSize,
-      fontFamily: block.fontFamily,
-      bold: block.bold,
-      italic: block.italic,
-      uppercase: block.uppercase,
-      textAlign: block.textAlign,
-      lineHeight: 1.4,
-      textShadow: block.textShadow ? shadowStr : undefined,
-    });
-    wrapper.appendChild(blockEl);
-  }
-
-  // Reference BOTTOM
-  if (style.refPosition === 'bottom' && slide.reference) {
-    const refEl = document.createElement('div');
-    refEl.innerText = slide.reference;
-    applyTextStyles(refEl, {
-      color: style.refColor,
-      fontSize: style.refFontSize,
-      fontFamily: style.fontFamily,
-      bold: true,
-      italic: style.refItalic,
-      uppercase: true,
-      textAlign: style.textAlign,
-      lineHeight: 1.2,
-      textShadow: refShadowStr,
-      whiteSpace: 'normal',
-    });
-    refEl.style.letterSpacing = '1px';
-    wrapper.appendChild(refEl);
-  }
-
-  slideEl.appendChild(wrapper);
-  container.appendChild(slideEl);
-
-  await new Promise<void>((resolve) => setTimeout(resolve, 30));
+  // Allow paint tick
+  await new Promise<void>((r) => setTimeout(r, 30));
 
   try {
-    return await toJpeg(slideEl, {
-      width: dims.width,
-      height: dims.height,
-      quality: 0.95,
-    });
+    return await toJpeg(root, { width: dims.width, height: dims.height, quality: 0.95 });
   } finally {
     document.body.removeChild(container);
   }
 };
+
+// ─── Batch helper ─────────────────────────────────────────────────────────────
 
 export const processInBatches = async <T, R>(
   items: T[],

@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import pptxgen from 'pptxgenjs';
 import JSZip from 'jszip';
-import type { Slide, SlideStyle, ViewportMode, CustomCanvasSize } from '../types';
+import type { Slide, ViewportMode, CustomCanvasSize } from '../types';
 import {
   captureFullResolutionSlide,
   getViewportDimensions,
@@ -13,7 +13,7 @@ const BATCH_SIZE = 6;
 export const exportCurrentJpg = async (
   slide: Slide,
   slideIndex: number,
-  globalStyle: SlideStyle,
+  globalStyle: unknown,
   viewportMode: ViewportMode,
   onProgress: (msg: string) => void,
   customCanvas?: CustomCanvasSize,
@@ -28,7 +28,7 @@ export const exportCurrentJpg = async (
 
 export const exportAllJpg = async (
   slides: Slide[],
-  globalStyle: SlideStyle,
+  globalStyle: unknown,
   viewportMode: ViewportMode,
   onProgress: (msg: string) => void,
   customCanvas?: CustomCanvasSize,
@@ -55,7 +55,7 @@ export const exportAllJpg = async (
 
 export const exportPdf = async (
   slides: Slide[],
-  globalStyle: SlideStyle,
+  globalStyle: unknown,
   viewportMode: ViewportMode,
   onProgress: (msg: string) => void,
   customCanvas?: CustomCanvasSize,
@@ -80,7 +80,7 @@ export const exportPdf = async (
 
 export const exportPptx = async (
   slides: Slide[],
-  globalStyle: SlideStyle,
+  globalStyle: unknown,
   viewportMode: ViewportMode,
   onProgress: (msg: string) => void,
   customCanvas?: CustomCanvasSize,
