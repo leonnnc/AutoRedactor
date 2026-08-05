@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { SermonInputPanel } from './components/SermonInputPanel';
 import { CanvasEditor } from './components/CanvasEditor';
 import { EditorPanel } from './components/EditorPanel';
@@ -8,7 +8,7 @@ import type {
 } from './types';
 import {
   Monitor, Tablet, Smartphone, ChevronLeft, ChevronRight,
-  AlertTriangle, Plus, Trash2, ChevronUp, ChevronDown, Maximize2,
+  AlertTriangle, Plus, Trash2, ChevronUp, ChevronDown, Maximize2, Save,
 } from 'lucide-react';
 import {
   parseSermonIntoSlides, makeDefaultSlide, makeTextElement, DEFAULT_BACKGROUND,
@@ -21,8 +21,23 @@ interface OperatorError  { title: string; message: string; options: OperatorOpti
 
 export default function App() {
   const [sermonText, setSermonText]     = useState('');
-  const [slides, setSlides]             = useState<Slide[]>(() => [makeDefaultSlide()]);
-  const [activeSlideId, setActiveSlideId] = useState<string | null>(() => slides[0]?.id ?? null);
+  const [slides, setSlides]             = useState<Slide[]>(() => {
+    try {
+      const saved = localStorage.getItem('autoredactor_slides');
+      if (saved) return JSON.parse(saved) as Slide[];
+    } catch {}
+    return [makeDefaultSlide()];
+  });
+  const [activeSlideId, setActiveSlideId] = useState<string | null>(() => {
+    try {
+      const saved = localStorage.getItem('autoredactor_slides');
+      if (saved) {
+        const parsed = JSON.parse(saved) as Slide[];
+        return parsed[0]?.id ?? null;
+      }
+    } catch {}
+    return slides[0]?.id ?? null;
+  });
   const [selectedElId, setSelectedElId] = useState<string | null>(null);
   const [viewportMode, setViewportMode] = useState<ViewportMode>('desktop');
   const [customCanvas, setCustomCanvas] = useState<CustomCanvasSize>({ width: 1920, height: 1080 });
@@ -35,6 +50,9 @@ export default function App() {
 
   const [isExporting, setIsExporting]     = useState(false);
   const [exportProgress, setExportProgress] = useState('');
+  const [lastSaved, setLastSaved]           = useState<Date | null>(null);
+  const [saveStatus, setSaveStatus]         = useState<'saved' | 'unsaved' | 'saving'>('saved');
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── derived ──────────────────────────────────────────────────────────────
   const activeSlideIndex = slides.findIndex((s) => s.id === activeSlideId);
@@ -86,6 +104,51 @@ export default function App() {
     };
     load();
   }, [bibleVersion]);
+
+  // ── Save logic ────────────────────────────────────────────────────────────
+  const saveNow = useCallback(() => {
+    setSaveStatus('saving');
+    try {
+      localStorage.setItem('autoredactor_slides', JSON.stringify(slides));
+      localStorage.setItem('autoredactor_saved_at', new Date().toISOString());
+      setLastSaved(new Date());
+      setSaveStatus('saved');
+    } catch {
+      setSaveStatus('unsaved');
+    }
+  }, [slides]);
+
+  // Mark unsaved whenever slides change
+  useEffect(() => {
+    setSaveStatus('unsaved');
+    // Clear any pending debounce
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    // Debounce: save 2s after last change (fast typing friendly)
+    saveTimeoutRef.current = setTimeout(saveNow, 2000);
+    return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current); };
+  }, [slides]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-save every 3 minutes regardless
+  useEffect(() => {
+    const interval = setInterval(saveNow, 3 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [saveNow]);
+
+  // Load saved timestamp on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('autoredactor_saved_at');
+    if (saved) setLastSaved(new Date(saved));
+  }, []);
+
+  const getSaveLabel = () => {
+    if (saveStatus === 'saving') return 'Guardando...';
+    if (saveStatus === 'unsaved') return 'Sin guardar';
+    if (!lastSaved) return 'Guardado';
+    const diff = Math.floor((Date.now() - lastSaved.getTime()) / 1000);
+    if (diff < 60) return 'Guardado';
+    if (diff < 3600) return `Guardado hace ${Math.floor(diff / 60)} min`;
+    return `Guardado hace ${Math.floor(diff / 3600)} h`;
+  };
 
   // ── Slide navigation ───────────────────────────────────────────────────────
   const handlePrevSlide = () => { if (activeSlideIndex > 0) { setActiveSlideId(slides[activeSlideIndex-1].id); setSelectedElId(null); }};
@@ -265,6 +328,25 @@ export default function App() {
           >
             + Texto
           </button>
+
+          {/* Save status indicator */}
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+            onClick={saveNow}
+            title="Clic para guardar ahora"
+          >
+            <Save
+              size={13}
+              style={{ color: saveStatus === 'saved' ? 'var(--success)' : saveStatus === 'saving' ? 'var(--accent-primary)' : '#f59e0b', flexShrink: 0 }}
+            />
+            <span style={{
+              fontSize: '11px',
+              color: saveStatus === 'saved' ? 'var(--text-disabled)' : saveStatus === 'saving' ? 'var(--accent-primary)' : '#f59e0b',
+              whiteSpace: 'nowrap',
+            }}>
+              {getSaveLabel()}
+            </span>
+          </div>
         </div>
 
         {/* Canvas editor */}

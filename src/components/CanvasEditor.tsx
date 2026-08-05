@@ -108,23 +108,22 @@ const CanvasElementNode: React.FC<{
   onFitToText: (w: number, h: number) => void;
   shadowColor: string;
   shadowBlur: number;
-}> = ({ el, isSelected, canvasW, canvasH, onSelect, onDragStart, onResizeStart, onCommitText, onFitToText, shadowColor, shadowBlur }) => {
+}> = ({ el, isSelected, canvasH, onSelect, onDragStart, onResizeStart, onCommitText, onFitToText, shadowColor, shadowBlur }) => {
   const [editing, setEditing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const textDivRef = useRef<HTMLDivElement>(null);
 
   const PAD_PX = 6; // padding around text in px
 
-  // After every render, measure the real rendered text size and report it
+  // After every render, measure the real rendered text height and adjust box height
+  // Width stays fixed (user controls it), only height auto-fits
   useEffect(() => {
     if (editing || !textDivRef.current) return;
     const rect = textDivRef.current.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
-    const newW = Math.min(95, Math.max(5, ((rect.width + PAD_PX * 2) / canvasW) * 100));
+    if (rect.height === 0) return;
     const newH = Math.min(95, Math.max(2, ((rect.height + PAD_PX * 2) / canvasH) * 100));
-    // Only update if meaningfully different (>0.5%) to avoid infinite loops
-    if (Math.abs(newW - el.w) > 0.5 || Math.abs(newH - el.h) > 0.5) {
-      onFitToText(newW, newH);
+    if (Math.abs(newH - el.h) > 0.5) {
+      onFitToText(el.w, newH);
     }
   });
 
@@ -141,7 +140,9 @@ const CanvasElementNode: React.FC<{
     textTransform: el.uppercase ? 'uppercase' : 'none',
     textAlign: el.textAlign,
     lineHeight: el.lineHeight,
-    whiteSpace: 'nowrap',          // single line — no wrapping unless box is resized manually
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+    width: '100%',
     opacity: el.opacity,
     ...(el.rotation !== 0 ? { transform: `rotate(${el.rotation}deg)` } : {}),
     ...(shadowStr ? { textShadow: shadowStr } : {}),
@@ -169,13 +170,12 @@ const CanvasElementNode: React.FC<{
     width: `${el.w}%`,
     height: `${el.h}%`,
     boxSizing: 'border-box',
+    padding: `${PAD_PX}px`,
     cursor: isSelected ? 'move' : 'pointer',
     userSelect: 'none',
     outline: isSelected ? `1px solid rgba(99,102,241,0.7)` : 'none',
     outlineOffset: '2px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    overflow: 'hidden',
   };
 
   return (
@@ -209,7 +209,7 @@ const CanvasElementNode: React.FC<{
           onClick={(e) => e.stopPropagation()}
         />
       ) : (
-        <div ref={textDivRef} style={{ ...textStyle, display: 'inline-block' }}>
+        <div ref={textDivRef} style={textStyle}>
           {el.text || <span style={{ opacity: 0.3 }}>Doble clic para editar</span>}
         </div>
       )}
