@@ -108,26 +108,33 @@ const CanvasElementNode: React.FC<{
   onFitToText: (w: number, h: number) => void;
   shadowColor: string;
   shadowBlur: number;
-}> = ({ el, isSelected, canvasH, onSelect, onDragStart, onResizeStart, onCommitText, onFitToText, shadowColor, shadowBlur }) => {
+}> = ({ el, isSelected, canvasW, canvasH, onSelect, onDragStart, onResizeStart, onCommitText, onFitToText, shadowColor, shadowBlur }) => {
   const [editing, setEditing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const textDivRef = useRef<HTMLDivElement>(null);
+  const fittedRef = useRef(false); // true after first auto-fit
 
-  const PAD_PX = 6; // padding around text in px
+  const PAD_PX = 6;
 
-  // After every render, measure the real rendered text height and adjust box height
-  // Width stays fixed (user controls it), only height auto-fits
+  // Auto-fit ONCE after first paint to get real browser dimensions
   useEffect(() => {
-    if (editing || !textDivRef.current) return;
+    if (fittedRef.current || editing || !textDivRef.current) return;
     const rect = textDivRef.current.getBoundingClientRect();
-    if (rect.height === 0) return;
+    if (rect.width === 0 || rect.height === 0) return;
+    fittedRef.current = true;
+    const newW = Math.min(95, Math.max(5, ((rect.width  + PAD_PX * 2) / canvasW) * 100));
     const newH = Math.min(95, Math.max(2, ((rect.height + PAD_PX * 2) / canvasH) * 100));
-    if (Math.abs(newH - el.h) > 0.5) {
-      onFitToText(el.w, newH);
+    if (Math.abs(newW - el.w) > 0.3 || Math.abs(newH - el.h) > 0.3) {
+      onFitToText(newW, newH);
     }
   });
 
-  const shadowStr = el.textShadow
+  // Re-fit when fontSize changes (reset the flag so next render re-measures)
+  const prevFontSize = useRef(el.fontSize);
+  if (prevFontSize.current !== el.fontSize) {
+    prevFontSize.current = el.fontSize;
+    fittedRef.current = false;
+  }  const shadowStr = el.textShadow
     ? `0 ${shadowBlur}px ${shadowBlur * 2}px ${shadowColor}`
     : undefined;
 

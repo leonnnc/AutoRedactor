@@ -31,9 +31,21 @@ export const DEFAULT_BACKGROUND: SlideBackground = {
 // ─── Element factories ────────────────────────────────────────────────────────
 
 /**
- * Calculate the height % a text box should have to snugly fit its text.
- * canvasH: preview canvas height in px (e.g. 540 for desktop at 0.5 scale)
+ * Estimate the width % a text box needs to fit its text on ONE line.
+ * Uses an average character width approximation per font size.
+ * canvasW: preview canvas width in px (e.g. 960 for desktop at 0.5 scale)
  */
+export const calcTextBoxW = (
+  text: string,
+  fontSize: number,
+  canvasW: number,
+  paddingPx = 12,
+): number => {
+  // Approx avg char width = fontSize * 0.55 for serif fonts
+  const estimatedTextW = text.length * fontSize * 0.55;
+  const totalW = estimatedTextW + paddingPx * 2;
+  return Math.min(90, Math.max(5, (totalW / canvasW) * 100));
+};
 export const calcTextBoxH = (
   fontSize: number,
   lineHeight: number,
@@ -45,26 +57,31 @@ export const calcTextBoxH = (
   return Math.min(90, Math.max(5, (contentH / canvasH) * 100));
 };
 
-// Desktop preview canvas height at 0.5 scale
+// Desktop preview canvas dimensions at 0.5 scale
+const PREVIEW_W = 960;
 const PREVIEW_H = 540;
 
 export const makeTextElement = (
   text: string,
   opts: Partial<CanvasElement> = {},
 ): CanvasElement => {
-  const fontSize = (opts.fontSize ?? 32);
+  const fontSize = opts.fontSize ?? 32;
   const lineHeight = 1.4;
-  // Estimate number of lines based on text length and box width
-  const charsPerLine = Math.max(1, Math.floor((opts.w ?? 90) * 9.6 / fontSize));
-  const numLines = Math.max(1, Math.ceil(text.length / charsPerLine));
-  const h = opts.h ?? calcTextBoxH(fontSize, lineHeight, numLines, PREVIEW_H);
+
+  // Calculate tight w and h from text content
+  const w = opts.w ?? calcTextBoxW(text, fontSize, PREVIEW_W);
+  const h = opts.h ?? calcTextBoxH(fontSize, lineHeight, 1, PREVIEW_H, 8);
+
+  // Center horizontally if no x provided
+  const x = opts.x ?? (50 - w / 2);
+  const y = opts.y ?? (50 - h / 2);
 
   return {
     id: crypto.randomUUID(),
     type: 'text',
-    x: 5,
-    y: 30,
-    w: 90,
+    x,
+    y,
+    w,
     h,
     text,
     isReference: false,
@@ -80,8 +97,6 @@ export const makeTextElement = (
     opacity: 1,
     rotation: 0,
     ...opts,
-    // recalculate h if opts overrides fontSize but not h
-    ...(opts.fontSize && !opts.h ? { h: calcTextBoxH(opts.fontSize, lineHeight, numLines, PREVIEW_H) } : {}),
   };
 };
 
