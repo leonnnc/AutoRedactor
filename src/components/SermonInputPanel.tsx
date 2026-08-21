@@ -115,7 +115,7 @@ export const SermonInputPanel: React.FC<SermonInputPanelProps> = ({
           AutoRedactor
         </h1>
         <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', padding: '3px 8px', borderRadius: '12px', color: 'var(--text-muted)' }}>
-          v3.4.0
+          v3.4.5
         </span>
       </div>
 
