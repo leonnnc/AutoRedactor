@@ -456,11 +456,14 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   };
 
   // ── Split divider drag ─────────────────────────────────────────────────────
+  const [isDividerHovered, setIsDividerHovered] = useState(false);
+  const [isDraggingDivider, setIsDraggingDivider] = useState(false);
   const splitDragRef = useRef<{ startMouse: number; startPos: number; axis: 'x' | 'y'; canvasPx: number } | null>(null);
 
   const handleSplitDividerMouseDown = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    setIsDraggingDivider(true);
     const isVertical = (bg.splitDirection ?? 'vertical') === 'vertical';
     splitDragRef.current = {
       startMouse: isVertical ? e.clientX : e.clientY,
@@ -481,6 +484,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
 
   const handleSplitMouseUp = useCallback(() => {
     splitDragRef.current = null;
+    setIsDraggingDivider(false);
   }, []);
 
   useEffect(() => {
@@ -599,12 +603,13 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
           <div style={buildSplitPanelStyle(bg)} />
         )}
 
-        {/* ── Draggable Split Divider Handle ── */}
+        {/* ── Draggable Split Divider Handle (interactive only on canvas) ── */}
         {bg.splitEnabled && (
           <div
             onMouseDown={handleSplitDividerMouseDown}
-            title="Arrastra para ajustar la posición del fondo dividido"
-            className="group"
+            onMouseEnter={() => setIsDividerHovered(true)}
+            onMouseLeave={() => setIsDividerHovered(false)}
+            title="Arrastra para mover la división de fondos"
             style={{
               position: 'absolute',
               zIndex: 9,
@@ -614,7 +619,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                     top: 0,
                     bottom: 0,
                     left: `${bg.splitPosition ?? 50}%`,
-                    width: '16px',
+                    width: '20px',
                     transform: 'translateX(-50%)',
                     display: 'flex',
                     alignItems: 'center',
@@ -624,7 +629,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                     left: 0,
                     right: 0,
                     top: `${bg.splitPosition ?? 50}%`,
-                    height: '16px',
+                    height: '20px',
                     transform: 'translateY(-50%)',
                     display: 'flex',
                     alignItems: 'center',
@@ -632,20 +637,21 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                   }),
             }}
           >
-            {/* Grab pill indicator that appears on hover / active */}
+            {/* Grab pill indicator — only visible on hover or during drag */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '4px',
+                padding: '4px 6px',
                 borderRadius: '9999px',
-                background: 'rgba(15, 23, 42, 0.75)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                background: 'rgba(15, 23, 42, 0.85)',
+                border: '1px solid rgba(255, 255, 255, 0.4)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
                 color: '#ffffff',
-                opacity: 0.6,
-                transition: 'all 0.15s ease',
+                opacity: isDividerHovered || isDraggingDivider ? 1 : 0,
+                transform: isDividerHovered || isDraggingDivider ? 'scale(1)' : 'scale(0.8)',
+                transition: 'opacity 0.2s ease, transform 0.2s ease',
                 pointerEvents: 'none',
               }}
             >

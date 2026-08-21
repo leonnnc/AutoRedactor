@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import type { Slide, SlideBackground } from '../types';
 import {
   Image as ImageIcon, Download, Sliders,
@@ -78,6 +78,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const splitFileInputRef = useRef<HTMLInputElement>(null);
+  const [bgSubTab, setBgSubTab] = useState<'bg1' | 'bg2' | 'split'>('bg1');
   const bg = activeSlide?.background;
 
   const upBg = (fields: Partial<SlideBackground>) => {
@@ -114,120 +115,356 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
       <div className="panel-content">
 
-        {/* ── BACKGROUND ── */}
+        {/* ── UNIFIED BACKGROUND CONTROL ── */}
         {bg && (
-          <div className="form-group" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span className="form-label" style={{ margin: 0 }}>Fondo de Diapositiva</span>
+          <div className="form-group" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <span className="form-label" style={{ margin: 0, fontSize: '12px' }}>Fondo de Diapositiva</span>
               <button className="btn btn-secondary" style={{ fontSize: '10px', padding: '3px 8px' }} onClick={onApplyBgToAll}>
                 Aplicar a todas
               </button>
             </div>
 
+            {/* Mode selector: Fondo Único vs Doble Fondo */}
             <div className="tabs-header" style={{ marginBottom: '10px' }}>
-              {(['solid','gradient','image'] as const).map((t) => (
-                <button key={t} className={`tab-btn ${bg.backgroundType === t ? 'active' : ''}`}
-                  onClick={() => upBg({ backgroundType: t })}>
-                  {t === 'solid' ? 'Sólido' : t === 'gradient' ? 'Degradado' : 'Imagen'}
-                </button>
-              ))}
+              <button
+                className={`tab-btn ${!bg.splitEnabled ? 'active' : ''}`}
+                onClick={() => upBg({ splitEnabled: false })}
+                style={{ fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+              >
+                <span>◻️</span> Fondo Único
+              </button>
+              <button
+                className={`tab-btn ${bg.splitEnabled ? 'active' : ''}`}
+                onClick={() => upBg({ splitEnabled: true })}
+                style={{ fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+              >
+                <span>🌓</span> Doble Fondo
+              </button>
             </div>
 
-            {bg.backgroundType === 'solid' && (
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <input type="color" value={bg.backgroundColor} onChange={(e) => upBg({ backgroundColor: e.target.value })}
-                  style={{ width: '40px', height: '40px', cursor: 'pointer', border: '1px solid var(--border-subtle)', borderRadius: '8px', backgroundColor: 'transparent' }} />
-                <input type="text" className="form-input" style={{ flex: 1 }} value={bg.backgroundColor}
-                  onChange={(e) => upBg({ backgroundColor: e.target.value })} />
-              </div>
-            )}
-
-            {bg.backgroundType === 'gradient' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div className="preset-grid">
-                  {PRESET_GRADIENTS.map((g, i) => (
-                    <button key={i} className={`preset-card ${bg.backgroundGradient === g.value ? 'active' : ''}`}
-                      style={{ background: g.value, height: '36px', border: 'none', color: '#fff', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
-                      onClick={() => upBg({ backgroundGradient: g.value })}>
-                      {bg.backgroundGradient === g.value && <Check size={11} style={{ marginRight: '3px' }} />}{g.name}
-                    </button>
-                  ))}
-                </div>
-                <textarea className="form-textarea" style={{ minHeight: '50px', fontSize: '11px' }}
-                  value={bg.backgroundGradient} onChange={(e) => upBg({ backgroundGradient: e.target.value })} />
-              </div>
-            )}
-
-            {bg.backgroundType === 'image' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div className="preset-grid">
-                  {PRESET_IMAGES.map((img, i) => (
-                    <button key={i} className={`preset-card ${bg.backgroundImage === img.value ? 'active' : ''}`}
-                      style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.45),rgba(0,0,0,0.45)),url(${img.value})`, backgroundSize: 'cover', backgroundPosition: 'center', height: '36px', border: 'none', color: '#fff', fontSize: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      onClick={() => upBg({ backgroundImage: img.value })}>
-                      {bg.backgroundImage === img.value && <Check size={10} style={{ marginRight: '2px' }} />}{img.name}
-                    </button>
-                  ))}
-                </div>
-                <input type="text" className="form-input" placeholder="URL de imagen..."
-                  value={bg.backgroundImage.startsWith('data:') ? '' : bg.backgroundImage}
-                  onChange={(e) => upBg({ backgroundImage: e.target.value })} />
-                <button className="btn btn-secondary" style={{ fontSize: '12px' }} onClick={() => fileInputRef.current?.click()}>
-                  <ImageIcon size={13} /> Subir imagen
+            {/* Sub-tabs for Doble Fondo: Fondo 1 / Fondo 2 / División */}
+            {bg.splitEnabled && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px', marginBottom: '12px', background: 'var(--bg-deep)', padding: '3px', borderRadius: '8px' }}>
+                <button
+                  className={`btn btn-secondary ${bgSubTab === 'bg1' ? 'active' : ''}`}
+                  style={{ fontSize: '10px', padding: '5px 2px', borderRadius: '6px' }}
+                  onClick={() => setBgSubTab('bg1')}
+                >
+                  1️⃣ Fondo 1
                 </button>
-                <input type="file" ref={fileInputRef} accept=".jpg,.jpeg,.png,image/jpeg,image/png"
-                  onChange={handleImageUpload} style={{ display: 'none' }} />
+                <button
+                  className={`btn btn-secondary ${bgSubTab === 'bg2' ? 'active' : ''}`}
+                  style={{ fontSize: '10px', padding: '5px 2px', borderRadius: '6px' }}
+                  onClick={() => setBgSubTab('bg2')}
+                >
+                  2️⃣ Fondo 2
+                </button>
+                <button
+                  className={`btn btn-secondary ${bgSubTab === 'split' ? 'active' : ''}`}
+                  style={{ fontSize: '10px', padding: '5px 2px', borderRadius: '6px' }}
+                  onClick={() => setBgSubTab('split')}
+                >
+                  ✂️ División
+                </button>
+              </div>
+            )}
 
-                {/* Image controls */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                  <div>
-                    <span className="form-label" style={{ fontSize: '10px' }}>Posición</span>
-                    <select className="form-select" value={bg.bgPosition} onChange={(e) => upBg({ bgPosition: e.target.value as any })}>
-                      {(['center','top','bottom','left','right'] as const).map((p) => <option key={p} value={p}>{p}</option>)}
-                    </select>
+            {/* ── PANEL: FONDO 1 (Single mode OR bgSubTab === 'bg1') ── */}
+            {(!bg.splitEnabled || bgSubTab === 'bg1') && (
+              <div>
+                {bg.splitEnabled && (
+                  <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--accent-primary)', marginBottom: '8px' }}>
+                    Configuración de Fondo 1 (Base):
                   </div>
-                  <div>
-                    <span className="form-label" style={{ fontSize: '10px' }}>Escala</span>
-                    <select className="form-select" value={bg.bgSize} onChange={(e) => upBg({ bgSize: e.target.value as any })}>
-                      <option value="cover">Cover</option>
-                      <option value="contain">Contain</option>
-                      <option value="auto">Auto</option>
-                    </select>
-                  </div>
+                )}
+
+                <div className="tabs-header" style={{ marginBottom: '10px' }}>
+                  {(['solid','gradient','image'] as const).map((t) => (
+                    <button key={t} className={`tab-btn ${bg.backgroundType === t ? 'active' : ''}`}
+                      onClick={() => upBg({ backgroundType: t })}>
+                      {t === 'solid' ? 'Sólido' : t === 'gradient' ? 'Degradado' : 'Imagen'}
+                    </button>
+                  ))}
                 </div>
 
-                <Row label="Desenfoque" value={bg.bgBlur > 0 ? `${bg.bgBlur}px` : 'Off'}>
-                  <Slider min={0} max={20} value={bg.bgBlur} onChange={(v) => upBg({ bgBlur: v })} />
-                </Row>
-
-                {/* Overlay */}
-                <div style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '8px' }}>
-                  <Row label="Capa oscura" value={`${Math.round(bg.overlayOpacity * 100)}%`}>
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <Slider min={0} max={1} step={0.05} value={bg.overlayOpacity} onChange={(v) => upBg({ overlayOpacity: v })} />
-                      <input type="color" value={bg.overlayColor} onChange={(e) => upBg({ overlayColor: e.target.value })}
-                        style={{ width: '26px', height: '26px', cursor: 'pointer', border: 'none', borderRadius: '4px' }} />
-                    </div>
-                  </Row>
-                  <div className="toggle-switch-container">
-                    <span className="form-label" style={{ fontSize: '10px', textTransform: 'none' }}>Degradado de sombra</span>
-                    <Toggle checked={bg.overlayGradient} onChange={(v) => upBg({ overlayGradient: v })} />
+                {bg.backgroundType === 'solid' && (
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input type="color" value={bg.backgroundColor} onChange={(e) => upBg({ backgroundColor: e.target.value })}
+                      style={{ width: '40px', height: '40px', cursor: 'pointer', border: '1px solid var(--border-subtle)', borderRadius: '8px', backgroundColor: 'transparent' }} />
+                    <input type="text" className="form-input" style={{ flex: 1 }} value={bg.backgroundColor}
+                      onChange={(e) => upBg({ backgroundColor: e.target.value })} />
                   </div>
-                  {bg.overlayGradient && (
-                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '6px' }}>
-                      {OVERLAY_GRADIENTS.map((og, i) => (
-                        <button key={i} className={`btn btn-secondary ${bg.overlayGradientValue === og.value ? 'active' : ''}`}
-                          style={{ fontSize: '10px', padding: '3px 6px' }}
-                          onClick={() => upBg({ overlayGradientValue: og.value })}>{og.name}</button>
+                )}
+
+                {bg.backgroundType === 'gradient' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div className="preset-grid">
+                      {PRESET_GRADIENTS.map((g, i) => (
+                        <button key={i} className={`preset-card ${bg.backgroundGradient === g.value ? 'active' : ''}`}
+                          style={{ background: g.value, height: '36px', border: 'none', color: '#fff', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
+                          onClick={() => upBg({ backgroundGradient: g.value })}>
+                          {bg.backgroundGradient === g.value && <Check size={11} style={{ marginRight: '3px' }} />}{g.name}
+                        </button>
                       ))}
                     </div>
-                  )}
+                    <textarea className="form-textarea" style={{ minHeight: '50px', fontSize: '11px' }}
+                      value={bg.backgroundGradient} onChange={(e) => upBg({ backgroundGradient: e.target.value })} />
+                  </div>
+                )}
+
+                {bg.backgroundType === 'image' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div className="preset-grid">
+                      {PRESET_IMAGES.map((img, i) => (
+                        <button key={i} className={`preset-card ${bg.backgroundImage === img.value ? 'active' : ''}`}
+                          style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.45),rgba(0,0,0,0.45)),url(${img.value})`, backgroundSize: 'cover', backgroundPosition: 'center', height: '36px', border: 'none', color: '#fff', fontSize: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          onClick={() => upBg({ backgroundImage: img.value })}>
+                          {bg.backgroundImage === img.value && <Check size={10} style={{ marginRight: '2px' }} />}{img.name}
+                        </button>
+                      ))}
+                    </div>
+                    <input type="text" className="form-input" placeholder="URL de imagen..."
+                      value={bg.backgroundImage.startsWith('data:') ? '' : bg.backgroundImage}
+                      onChange={(e) => upBg({ backgroundImage: e.target.value })} />
+                    <button className="btn btn-secondary" style={{ fontSize: '12px' }} onClick={() => fileInputRef.current?.click()}>
+                      <ImageIcon size={13} /> Subir imagen
+                    </button>
+                    <input type="file" ref={fileInputRef} accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                      onChange={handleImageUpload} style={{ display: 'none' }} />
+
+                    {/* Image controls */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                      <div>
+                        <span className="form-label" style={{ fontSize: '10px' }}>Posición</span>
+                        <select className="form-select" value={bg.bgPosition} onChange={(e) => upBg({ bgPosition: e.target.value as any })}>
+                          {(['center','top','bottom','left','right'] as const).map((p) => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <span className="form-label" style={{ fontSize: '10px' }}>Escala</span>
+                        <select className="form-select" value={bg.bgSize} onChange={(e) => upBg({ bgSize: e.target.value as any })}>
+                          <option value="cover">Cover</option>
+                          <option value="contain">Contain</option>
+                          <option value="auto">Auto</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <Row label="Desenfoque" value={bg.bgBlur > 0 ? `${bg.bgBlur}px` : 'Off'}>
+                      <Slider min={0} max={20} value={bg.bgBlur} onChange={(v) => upBg({ bgBlur: v })} />
+                    </Row>
+
+                    {/* Overlay */}
+                    <div style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '8px' }}>
+                      <Row label="Capa oscura" value={`${Math.round(bg.overlayOpacity * 100)}%`}>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <Slider min={0} max={1} step={0.05} value={bg.overlayOpacity} onChange={(v) => upBg({ overlayOpacity: v })} />
+                          <input type="color" value={bg.overlayColor} onChange={(e) => upBg({ overlayColor: e.target.value })}
+                            style={{ width: '26px', height: '26px', cursor: 'pointer', border: 'none', borderRadius: '4px' }} />
+                        </div>
+                      </Row>
+                      <div className="toggle-switch-container">
+                        <span className="form-label" style={{ fontSize: '10px', textTransform: 'none' }}>Degradado de sombra</span>
+                        <Toggle checked={bg.overlayGradient} onChange={(v) => upBg({ overlayGradient: v })} />
+                      </div>
+                      {bg.overlayGradient && (
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '6px' }}>
+                          {OVERLAY_GRADIENTS.map((og, i) => (
+                            <button key={i} className={`btn btn-secondary ${bg.overlayGradientValue === og.value ? 'active' : ''}`}
+                              style={{ fontSize: '10px', padding: '3px 6px' }}
+                              onClick={() => upBg({ overlayGradientValue: og.value })}>{og.name}</button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── PANEL: FONDO 2 (Doble mode & bgSubTab === 'bg2') ── */}
+            {bg.splitEnabled && bgSubTab === 'bg2' && (
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--accent-primary)', marginBottom: '8px' }}>
+                  Configuración de Fondo 2 (Secundario):
                 </div>
+
+                <div className="tabs-header" style={{ marginBottom: '10px' }}>
+                  {(['solid', 'gradient', 'image'] as const).map((t) => (
+                    <button key={t} className={`tab-btn ${(bg.splitBackgroundType ?? 'solid') === t ? 'active' : ''}`}
+                      onClick={() => upBg({ splitBackgroundType: t })}>
+                      {t === 'solid' ? 'Sólido' : t === 'gradient' ? 'Degradado' : 'Imagen'}
+                    </button>
+                  ))}
+                </div>
+
+                {(bg.splitBackgroundType ?? 'solid') === 'solid' && (
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input type="color"
+                      value={bg.splitBackgroundColor ?? '#1e293b'}
+                      onChange={(e) => upBg({ splitBackgroundColor: e.target.value })}
+                      style={{ width: '40px', height: '40px', cursor: 'pointer', border: '1px solid var(--border-subtle)', borderRadius: '8px', backgroundColor: 'transparent' }} />
+                    <input type="text" className="form-input" style={{ flex: 1 }}
+                      value={bg.splitBackgroundColor ?? '#1e293b'}
+                      onChange={(e) => upBg({ splitBackgroundColor: e.target.value })} />
+                  </div>
+                )}
+
+                {(bg.splitBackgroundType ?? 'solid') === 'gradient' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div className="preset-grid">
+                      {PRESET_GRADIENTS.map((g, i) => (
+                        <button key={i}
+                          className={`preset-card ${(bg.splitBackgroundGradient ?? '') === g.value ? 'active' : ''}`}
+                          style={{ background: g.value, height: '32px', border: 'none', color: '#fff', fontSize: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
+                          onClick={() => upBg({ splitBackgroundGradient: g.value })}>
+                          {(bg.splitBackgroundGradient ?? '') === g.value && <Check size={10} style={{ marginRight: '2px' }} />}{g.name}
+                        </button>
+                      ))}
+                    </div>
+                    <textarea className="form-textarea" style={{ minHeight: '44px', fontSize: '10px' }}
+                      value={bg.splitBackgroundGradient ?? ''}
+                      onChange={(e) => upBg({ splitBackgroundGradient: e.target.value })} />
+                  </div>
+                )}
+
+                {bg.splitBackgroundType === 'image' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div className="preset-grid">
+                      {PRESET_IMAGES.map((img, i) => (
+                        <button key={i} className={`preset-card ${(bg.splitBackgroundImage ?? '') === img.value ? 'active' : ''}`}
+                          style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.45),rgba(0,0,0,0.45)),url(${img.value})`, backgroundSize: 'cover', backgroundPosition: 'center', height: '32px', border: 'none', color: '#fff', fontSize: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          onClick={() => upBg({ splitBackgroundImage: img.value })}>
+                          {(bg.splitBackgroundImage ?? '') === img.value && <Check size={10} style={{ marginRight: '2px' }} />}{img.name}
+                        </button>
+                      ))}
+                    </div>
+                    <input type="text" className="form-input" placeholder="URL de imagen para fondo 2..."
+                      value={(bg.splitBackgroundImage ?? '').startsWith('data:') ? '' : (bg.splitBackgroundImage ?? '')}
+                      onChange={(e) => upBg({ splitBackgroundImage: e.target.value })} />
+                    <button className="btn btn-secondary" style={{ fontSize: '12px' }} onClick={() => splitFileInputRef.current?.click()}>
+                      <ImageIcon size={13} /> Subir imagen al 2° fondo
+                    </button>
+                    <input type="file" ref={splitFileInputRef} accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                      onChange={handleSplitImageUpload} style={{ display: 'none' }} />
+
+                    {/* Image controls for split bg */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                      <div>
+                        <span className="form-label" style={{ fontSize: '10px' }}>Posición</span>
+                        <select className="form-select" value={bg.splitBgPosition ?? 'center'} onChange={(e) => upBg({ splitBgPosition: e.target.value as any })}>
+                          {(['center','top','bottom','left','right'] as const).map((p) => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <span className="form-label" style={{ fontSize: '10px' }}>Escala</span>
+                        <select className="form-select" value={bg.splitBgSize ?? 'cover'} onChange={(e) => upBg({ splitBgSize: e.target.value as any })}>
+                          <option value="cover">Cover</option>
+                          <option value="contain">Contain</option>
+                          <option value="auto">Auto</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <Row label="Desenfoque 2° fondo" value={(bg.splitBgBlur ?? 0) > 0 ? `${bg.splitBgBlur}px` : 'Off'}>
+                      <Slider min={0} max={20} value={bg.splitBgBlur ?? 0} onChange={(v) => upBg({ splitBgBlur: v })} />
+                    </Row>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── PANEL: DIVISIÓN (Doble mode & bgSubTab === 'split') ── */}
+            {bg.splitEnabled && bgSubTab === 'split' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--accent-primary)' }}>
+                  Ajustes de la División:
+                </div>
+
+                {/* Direction */}
+                <div>
+                  <span className="form-label" style={{ fontSize: '10px' }}>Orientación del corte</span>
+                  <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                    {(['vertical', 'horizontal'] as const).map((dir) => (
+                      <button key={dir}
+                        className={`btn btn-secondary ${(bg.splitDirection ?? 'vertical') === dir ? 'active' : ''}`}
+                        style={{ flex: 1, fontSize: '11px', padding: '5px' }}
+                        onClick={() => upBg({ splitDirection: dir })}>
+                        {dir === 'vertical' ? '⬛⬜ Izq / Der' : '⬛\n⬜ Arr / Abajo'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Position slider */}
+                <Row
+                  label={(bg.splitDirection ?? 'vertical') === 'vertical' ? 'Posición (←→)' : 'Posición (↑↓)'}
+                  value={`${bg.splitPosition ?? 50}%`}>
+                  <Slider min={5} max={95} value={bg.splitPosition ?? 50}
+                    onChange={(v) => upBg({ splitPosition: v })} />
+                </Row>
+
+                {/* Aspect / Style of Division */}
+                <div>
+                  <span className="form-label" style={{ fontSize: '10px' }}>Aspecto de la división</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px', marginTop: '4px' }}>
+                    {[
+                      { id: 'none', label: 'Limpio', icon: '🚫' },
+                      { id: 'shadow', label: 'Sombra', icon: '🌫️' },
+                      { id: 'border', label: 'Borde', icon: '📏' },
+                      { id: 'feather', label: 'Suave', icon: '🌊' },
+                      { id: 'diagonal', label: 'Diagonal', icon: '📐' },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        className={`btn btn-secondary ${(bg.splitDividerStyle ?? 'none') === item.id ? 'active' : ''}`}
+                        style={{
+                          fontSize: '9px',
+                          padding: '4px 2px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '2px',
+                        }}
+                        onClick={() => upBg({ splitDividerStyle: item.id as any })}
+                      >
+                        <span style={{ fontSize: '12px' }}>{item.icon}</span>
+                        <span>{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Conditional options for division aspect */}
+                {(bg.splitDividerStyle === 'border') && (
+                  <div style={{ background: 'var(--bg-deep)', padding: '8px', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <Row label="Grosor del borde" value={`${bg.splitBorderWidth ?? 2}px`}>
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <Slider min={1} max={16} value={bg.splitBorderWidth ?? 2} onChange={(v) => upBg({ splitBorderWidth: v })} />
+                        <input type="color" value={bg.splitBorderColor ?? '#ffffff'} onChange={(e) => upBg({ splitBorderColor: e.target.value })}
+                          style={{ width: '26px', height: '26px', cursor: 'pointer', border: 'none', borderRadius: '4px' }} />
+                      </div>
+                    </Row>
+                  </div>
+                )}
+
+                {(bg.splitDividerStyle === 'diagonal') && (
+                  <div style={{ background: 'var(--bg-deep)', padding: '8px', borderRadius: '6px' }}>
+                    <Row label="Inclinación / Ángulo" value={`${bg.splitAngle ?? 10}°`}>
+                      <Slider min={-30} max={30} value={bg.splitAngle ?? 10} onChange={(v) => upBg({ splitAngle: v })} />
+                    </Row>
+                  </div>
+                )}
+
+                <p style={{ fontSize: '10px', color: 'var(--text-muted)', margin: '4px 0 0 0', lineHeight: 1.4 }}>
+                  💡 Puedes arrastrar el tirador en el canvas. En el trabajo final exportado se verá limpio sin ningún botón ni tirador.
+                </p>
               </div>
             )}
 
             {/* Slide FX */}
-            <div style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '10px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '10px', marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <Row label="Viñeta" value={bg.vignetteOpacity > 0 ? `${Math.round(bg.vignetteOpacity * 100)}%` : 'Off'}>
                 <Slider min={0} max={1} step={0.05} value={bg.vignetteOpacity} onChange={(v) => upBg({ vignetteOpacity: v })} />
               </Row>
@@ -246,187 +483,6 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     style={{ width: '26px', height: '26px', cursor: 'pointer', border: 'none', borderRadius: '4px' }} />
                 </div>
               </Row>
-            </div>
-
-            {/* ── Split / Dual Background ── */}
-            <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '12px', marginTop: '6px' }}>
-              <div className="toggle-switch-container" style={{ marginBottom: '10px' }}>
-                <span className="form-label" style={{ margin: 0, fontSize: '12px' }}>
-                  🎨 Fondo Dividido (Doble Fondo)
-                </span>
-                <Toggle checked={bg.splitEnabled ?? false} onChange={(v) => upBg({ splitEnabled: v })} />
-              </div>
-
-              {bg.splitEnabled && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-
-                  {/* Direction */}
-                  <div>
-                    <span className="form-label" style={{ fontSize: '10px' }}>Orientación del corte</span>
-                    <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-                      {(['vertical', 'horizontal'] as const).map((dir) => (
-                        <button key={dir}
-                          className={`btn btn-secondary ${(bg.splitDirection ?? 'vertical') === dir ? 'active' : ''}`}
-                          style={{ flex: 1, fontSize: '11px', padding: '5px' }}
-                          onClick={() => upBg({ splitDirection: dir })}>
-                          {dir === 'vertical' ? '⬛⬜ Izq / Der' : '⬛\n⬜ Arr / Abajo'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Position slider */}
-                  <Row
-                    label={(bg.splitDirection ?? 'vertical') === 'vertical' ? 'Posición (←→)' : 'Posición (↑↓)'}
-                    value={`${bg.splitPosition ?? 50}%`}>
-                    <Slider min={5} max={95} value={bg.splitPosition ?? 50}
-                      onChange={(v) => upBg({ splitPosition: v })} />
-                  </Row>
-
-                  {/* Aspect / Style of Division */}
-                  <div>
-                    <span className="form-label" style={{ fontSize: '10px' }}>Aspecto de la división</span>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px', marginTop: '4px' }}>
-                      {[
-                        { id: 'none', label: 'Limpio', icon: '🚫' },
-                        { id: 'shadow', label: 'Sombra', icon: '🌫️' },
-                        { id: 'border', label: 'Borde', icon: '📏' },
-                        { id: 'feather', label: 'Suave', icon: '🌊' },
-                        { id: 'diagonal', label: 'Diagonal', icon: '📐' },
-                      ].map((item) => (
-                        <button
-                          key={item.id}
-                          className={`btn btn-secondary ${(bg.splitDividerStyle ?? 'none') === item.id ? 'active' : ''}`}
-                          style={{
-                            fontSize: '9px',
-                            padding: '4px 2px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: '2px',
-                          }}
-                          onClick={() => upBg({ splitDividerStyle: item.id as any })}
-                        >
-                          <span style={{ fontSize: '12px' }}>{item.icon}</span>
-                          <span>{item.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Conditional options for division aspect */}
-                  {(bg.splitDividerStyle === 'border') && (
-                    <div style={{ background: 'var(--bg-deep)', padding: '8px', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <Row label="Grosor del borde" value={`${bg.splitBorderWidth ?? 2}px`}>
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                          <Slider min={1} max={16} value={bg.splitBorderWidth ?? 2} onChange={(v) => upBg({ splitBorderWidth: v })} />
-                          <input type="color" value={bg.splitBorderColor ?? '#ffffff'} onChange={(e) => upBg({ splitBorderColor: e.target.value })}
-                            style={{ width: '26px', height: '26px', cursor: 'pointer', border: 'none', borderRadius: '4px' }} />
-                        </div>
-                      </Row>
-                    </div>
-                  )}
-
-                  {(bg.splitDividerStyle === 'diagonal') && (
-                    <div style={{ background: 'var(--bg-deep)', padding: '8px', borderRadius: '6px' }}>
-                      <Row label="Inclinación / Ángulo" value={`${bg.splitAngle ?? 10}°`}>
-                        <Slider min={-30} max={30} value={bg.splitAngle ?? 10} onChange={(v) => upBg({ splitAngle: v })} />
-                      </Row>
-                    </div>
-                  )}
-
-                  {/* Second background type */}
-                  <div>
-                    <span className="form-label" style={{ fontSize: '10px' }}>Tipo del 2° fondo</span>
-                    <div className="tabs-header" style={{ marginTop: '4px', marginBottom: '8px' }}>
-                      {(['solid', 'gradient', 'image'] as const).map((t) => (
-                        <button key={t} className={`tab-btn ${ (bg.splitBackgroundType ?? 'solid') === t ? 'active' : ''}`}
-                          onClick={() => upBg({ splitBackgroundType: t })}>
-                          {t === 'solid' ? 'Sólido' : t === 'gradient' ? 'Degradado' : 'Imagen'}
-                        </button>
-                      ))}
-                    </div>
-
-                    {(bg.splitBackgroundType ?? 'solid') === 'solid' && (
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <input type="color"
-                          value={bg.splitBackgroundColor ?? '#1e293b'}
-                          onChange={(e) => upBg({ splitBackgroundColor: e.target.value })}
-                          style={{ width: '40px', height: '40px', cursor: 'pointer', border: '1px solid var(--border-subtle)', borderRadius: '8px', backgroundColor: 'transparent' }} />
-                        <input type="text" className="form-input" style={{ flex: 1 }}
-                          value={bg.splitBackgroundColor ?? '#1e293b'}
-                          onChange={(e) => upBg({ splitBackgroundColor: e.target.value })} />
-                      </div>
-                    )}
-
-                    {(bg.splitBackgroundType ?? 'solid') === 'gradient' && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <div className="preset-grid">
-                          {PRESET_GRADIENTS.map((g, i) => (
-                            <button key={i}
-                              className={`preset-card ${ (bg.splitBackgroundGradient ?? '') === g.value ? 'active' : ''}`}
-                              style={{ background: g.value, height: '32px', border: 'none', color: '#fff', fontSize: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
-                              onClick={() => upBg({ splitBackgroundGradient: g.value })}>
-                              {(bg.splitBackgroundGradient ?? '') === g.value && <Check size={10} style={{ marginRight: '2px' }} />}{g.name}
-                            </button>
-                          ))}
-                        </div>
-                        <textarea className="form-textarea" style={{ minHeight: '44px', fontSize: '10px' }}
-                          value={bg.splitBackgroundGradient ?? ''}
-                          onChange={(e) => upBg({ splitBackgroundGradient: e.target.value })} />
-                      </div>
-                    )}
-
-                    {bg.splitBackgroundType === 'image' && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <div className="preset-grid">
-                          {PRESET_IMAGES.map((img, i) => (
-                            <button key={i} className={`preset-card ${(bg.splitBackgroundImage ?? '') === img.value ? 'active' : ''}`}
-                              style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.45),rgba(0,0,0,0.45)),url(${img.value})`, backgroundSize: 'cover', backgroundPosition: 'center', height: '32px', border: 'none', color: '#fff', fontSize: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                              onClick={() => upBg({ splitBackgroundImage: img.value })}>
-                              {(bg.splitBackgroundImage ?? '') === img.value && <Check size={10} style={{ marginRight: '2px' }} />}{img.name}
-                            </button>
-                          ))}
-                        </div>
-                        <input type="text" className="form-input" placeholder="URL de imagen para fondo 2..."
-                          value={(bg.splitBackgroundImage ?? '').startsWith('data:') ? '' : (bg.splitBackgroundImage ?? '')}
-                          onChange={(e) => upBg({ splitBackgroundImage: e.target.value })} />
-                        <button className="btn btn-secondary" style={{ fontSize: '12px' }} onClick={() => splitFileInputRef.current?.click()}>
-                          <ImageIcon size={13} /> Subir imagen al 2° fondo
-                        </button>
-                        <input type="file" ref={splitFileInputRef} accept=".jpg,.jpeg,.png,image/jpeg,image/png"
-                          onChange={handleSplitImageUpload} style={{ display: 'none' }} />
-
-                        {/* Image controls for split bg */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                          <div>
-                            <span className="form-label" style={{ fontSize: '10px' }}>Posición</span>
-                            <select className="form-select" value={bg.splitBgPosition ?? 'center'} onChange={(e) => upBg({ splitBgPosition: e.target.value as any })}>
-                              {(['center','top','bottom','left','right'] as const).map((p) => <option key={p} value={p}>{p}</option>)}
-                            </select>
-                          </div>
-                          <div>
-                            <span className="form-label" style={{ fontSize: '10px' }}>Escala</span>
-                            <select className="form-select" value={bg.splitBgSize ?? 'cover'} onChange={(e) => upBg({ splitBgSize: e.target.value as any })}>
-                              <option value="cover">Cover</option>
-                              <option value="contain">Contain</option>
-                              <option value="auto">Auto</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        <Row label="Desenfoque 2° fondo" value={(bg.splitBgBlur ?? 0) > 0 ? `${bg.splitBgBlur}px` : 'Off'}>
-                          <Slider min={0} max={20} value={bg.splitBgBlur ?? 0} onChange={(v) => upBg({ splitBgBlur: v })} />
-                        </Row>
-                      </div>
-                    )}
-                  </div>
-
-                  <p style={{ fontSize: '10px', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
-                    💡 Puedes arrastrar el tirador directamente en el canvas para mover la división.
-                  </p>
-                </div>
-              )}
             </div>
           </div>
         )}
