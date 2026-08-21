@@ -74,6 +74,34 @@ export const captureFullResolutionSlide = async (
     root.style.boxShadow = 'inset 0 0 120px rgba(0,0,0,0.7)';
   }
 
+  // Split background panel
+  if (bg.splitEnabled) {
+    const isVertical = (bg.splitDirection ?? 'vertical') === 'vertical';
+    const pos = bg.splitPosition ?? 50;
+    const splitEl = document.createElement('div');
+    Object.assign(splitEl.style, {
+      position: 'absolute',
+      zIndex: '0',
+      ...(isVertical
+        ? { top: '0', bottom: '0', left: `${pos}%`, right: '0' }
+        : { left: '0', right: '0', top: `${pos}%`, bottom: '0' }),
+    } as Partial<CSSStyleDeclaration>);
+
+    if (bg.splitBackgroundType === 'solid') {
+      splitEl.style.backgroundColor = bg.splitBackgroundColor ?? '#1e293b';
+    } else if (bg.splitBackgroundType === 'gradient') {
+      splitEl.style.background = bg.splitBackgroundGradient ?? 'linear-gradient(135deg, #1e293b, #0f172a)';
+    } else if (bg.splitBackgroundType === 'image' && bg.splitBackgroundImage) {
+      splitEl.style.backgroundImage = `url(${bg.splitBackgroundImage})`;
+      splitEl.style.backgroundSize = 'cover';
+      splitEl.style.backgroundPosition = 'center';
+      splitEl.style.backgroundRepeat = 'no-repeat';
+    } else {
+      splitEl.style.backgroundColor = bg.splitBackgroundColor ?? '#1e293b';
+    }
+    root.appendChild(splitEl);
+  }
+
   // Flat overlay
   if (hasBgImage || bg.backgroundType !== 'solid') {
     const overlay = document.createElement('div');

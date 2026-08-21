@@ -40,6 +40,7 @@ interface CanvasEditorProps {
   onSelectElement: (id: string | null) => void;
   onUpdateElement: (id: string, fields: Partial<CanvasElement>) => void;
   onDeleteElement: (id: string) => void;
+  onUpdateBackground?: (fields: Partial<SlideBackground>) => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -55,6 +56,7 @@ const getPreviewDimensions = (mode: ViewportMode, custom?: CustomCanvasSize) => 
   }
   return base;
 };
+
 
 const buildSlideStyle = (bg: SlideBackground): React.CSSProperties => {
   const base: React.CSSProperties = {
@@ -79,6 +81,25 @@ const buildSlideStyle = (bg: SlideBackground): React.CSSProperties => {
   }
   return { ...base, backgroundColor: '#0f172a' };
 };
+
+/** Build the CSS style for the second (split) background panel. */
+const buildSplitPanelStyle = (bg: SlideBackground): React.CSSProperties => {
+  const pos = bg.splitPosition ?? 50;
+  const dir = bg.splitDirection ?? 'vertical';
+  const base: React.CSSProperties = {
+    position: 'absolute',
+    zIndex: 0,
+    // clip to the second portion of the slide
+    ...(dir === 'vertical'
+      ? { top: 0, bottom: 0, left: `${pos}%`, right: 0 }
+      : { left: 0, right: 0, top: `${pos}%`, bottom: 0 }),
+  };
+  const type = bg.splitBackgroundType ?? 'solid';
+  if (type === 'solid') return { ...base, backgroundColor: bg.splitBackgroundColor ?? '#1e293b' };
+  if (type === 'gradient') return { ...base, background: bg.splitBackgroundGradient ?? 'linear-gradient(135deg,#0f172a,#1e3a5f)' };
+  return { ...base, backgroundColor: '#1e293b' };
+};
+
 
 // ─── Resize handle positions ──────────────────────────────────────────────────
 
@@ -249,7 +270,7 @@ const CanvasElementNode: React.FC<{
 
 export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   slide, selectedId, viewportMode, customCanvas,
-  onSelectElement, onUpdateElement, onDeleteElement,
+  onSelectElement, onUpdateElement, onDeleteElement, onUpdateBackground,
 }) => {
   const dims = getPreviewDimensions(viewportMode, customCanvas);
   const canvasW = dims.width * dims.scale;
@@ -372,6 +393,44 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
     onUpdateElement(selectedId, { ...fields, ...extra });
   };
 
+  // ── Split divider drag ─────────────────────────────────────────────────────
+  const splitDragRef = useRef<{ startMouse: number; startPos: number; axis: 'x' | 'y'; canvasPx: number } | null>(null);
+
+  const handleSplitDividerMouseDown = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const isVertical = (bg.splitDirection ?? 'vertical') === 'vertical';
+    splitDragRef.current = {
+      startMouse: isVertical ? e.clientX : e.clientY,
+      startPos: bg.splitPosition ?? 50,
+      axis: isVertical ? 'x' : 'y',
+      canvasPx: isVertical ? canvasW : canvasH,
+    };
+  }, [bg.splitDirection, bg.splitPosition, canvasW, canvasH]);
+
+  const handleSplitMouseMove = useCallback((e: MouseEvent) => {
+    const d = splitDragRef.current;
+    if (!d || !onUpdateBackground) return;
+    const delta = ((d.axis === 'x' ? e.clientX : e.clientY) - d.startMouse);
+    const deltaPct = (delta / d.canvasPx) * 100;
+    const newPos = clamp(d.startPos + deltaPct, 5, 95);
+    onUpdateBackground({ splitPosition: Math.round(newPos) });
+  }, [onUpdateBackground]);
+
+  const handleSplitMouseUp = useCallback(() => {
+    splitDragRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('mousemove', handleSplitMouseMove);
+    window.addEventListener('mouseup', handleSplitMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleSplitMouseMove);
+      window.removeEventListener('mouseup', handleSplitMouseUp);
+    };
+  }, [handleSplitMouseMove, handleSplitMouseUp]);
+
+
   return (
     <div className="canvas-area">
 
@@ -472,6 +531,56 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       >
         {/* ── Background layers ── */}
         <div style={buildSlideStyle(bg)} />
+
+        {/* ── Split background layer (second panel) ── */}
+        {bg.splitEnabled && (
+          <div style={buildSplitPanelStyle(bg)} />
+        )}
+
+        {/* ── Draggable Split Divider Handle ── */}
+        {bg.splitEnabled && (
+          <div
+            onMouseDown={handleSplitDividerMouseDown}
+            title="Arrastra para ajustar la división"
+            style={{
+              position: 'absolute',
+              zIndex: 9,
+              cursor: (bg.splitDirection ?? 'vertical') === 'vertical' ? 'col-resize' : 'row-resize',
+              ...((bg.splitDirection ?? 'vertical') === 'vertical'
+                ? {
+                    top: 0,
+                    bottom: 0,
+                    left: `${bg.splitPosition ?? 50}%`,
+                    width: '12px',
+                    transform: 'translateX(-50%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }
+                : {
+                    left: 0,
+                    right: 0,
+                    top: `${bg.splitPosition ?? 50}%`,
+                    height: '12px',
+                    transform: 'translateY(-50%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }),
+            }}
+          >
+            <div
+              style={{
+                width: (bg.splitDirection ?? 'vertical') === 'vertical' ? '2px' : '100%',
+                height: (bg.splitDirection ?? 'vertical') === 'vertical' ? '100%' : '2px',
+                background: 'rgba(255, 255, 255, 0.45)',
+                boxShadow: '0 0 4px rgba(0,0,0,0.6)',
+                borderRadius: '1px',
+              }}
+            />
+          </div>
+        )}
+
 
         {hasBgImage && bg.bgBlur > 0 && (
           <div style={{

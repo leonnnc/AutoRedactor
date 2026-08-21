@@ -58,6 +58,34 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
     return { backgroundColor: '#0f172a' };
   })();
 
+  const splitStyle: React.CSSProperties = (() => {
+    const isVertical = (bg.splitDirection ?? 'vertical') === 'vertical';
+    const pos = bg.splitPosition ?? 50;
+    const base: React.CSSProperties = {
+      position: 'absolute',
+      zIndex: 0,
+      ...(isVertical
+        ? { top: 0, bottom: 0, left: `${pos}%`, right: 0 }
+        : { left: 0, right: 0, top: `${pos}%`, bottom: 0 }),
+    };
+    if (bg.splitBackgroundType === 'solid') {
+      return { ...base, backgroundColor: bg.splitBackgroundColor ?? '#1e293b' };
+    }
+    if (bg.splitBackgroundType === 'gradient') {
+      return { ...base, background: bg.splitBackgroundGradient ?? 'linear-gradient(135deg, #1e293b, #0f172a)' };
+    }
+    if (bg.splitBackgroundType === 'image' && bg.splitBackgroundImage) {
+      return {
+        ...base,
+        backgroundImage: `url(${bg.splitBackgroundImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      };
+    }
+    return { ...base, backgroundColor: bg.splitBackgroundColor ?? '#1e293b' };
+  })();
+
   const slideStyle: React.CSSProperties = {
     width: `${dims.width}px`,
     height: `${dims.height}px`,
@@ -84,6 +112,11 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
         }}
       >
         <div ref={canvasRef} id="capture-slide-node" style={slideStyle}>
+
+          {/* Split background panel */}
+          {bg.splitEnabled && (
+            <div style={splitStyle} />
+          )}
 
           {/* BG blur layer */}
           {hasBgImage && bg.bgBlur > 0 && (

@@ -235,6 +235,91 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                 </div>
               </Row>
             </div>
+
+            {/* ── Split / Dual Background ── */}
+            <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '12px', marginTop: '6px' }}>
+              <div className="toggle-switch-container" style={{ marginBottom: '10px' }}>
+                <span className="form-label" style={{ margin: 0, fontSize: '12px' }}>
+                  🎨 Fondo Dividido (Doble Fondo)
+                </span>
+                <Toggle checked={bg.splitEnabled ?? false} onChange={(v) => upBg({ splitEnabled: v })} />
+              </div>
+
+              {bg.splitEnabled && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+                  {/* Direction */}
+                  <div>
+                    <span className="form-label" style={{ fontSize: '10px' }}>Orientación del corte</span>
+                    <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                      {(['vertical', 'horizontal'] as const).map((dir) => (
+                        <button key={dir}
+                          className={`btn btn-secondary ${(bg.splitDirection ?? 'vertical') === dir ? 'active' : ''}`}
+                          style={{ flex: 1, fontSize: '11px', padding: '5px' }}
+                          onClick={() => upBg({ splitDirection: dir })}>
+                          {dir === 'vertical' ? '⬛⬜ Izq / Der' : '⬛\n⬜ Arr / Abajo'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Position slider */}
+                  <Row
+                    label={(bg.splitDirection ?? 'vertical') === 'vertical' ? 'Posición (←→)' : 'Posición (↑↓)'}
+                    value={`${bg.splitPosition ?? 50}%`}>
+                    <Slider min={10} max={90} value={bg.splitPosition ?? 50}
+                      onChange={(v) => upBg({ splitPosition: v })} />
+                  </Row>
+
+                  {/* Second background type */}
+                  <div>
+                    <span className="form-label" style={{ fontSize: '10px' }}>Tipo del 2° fondo</span>
+                    <div className="tabs-header" style={{ marginTop: '4px', marginBottom: '8px' }}>
+                      {(['solid', 'gradient'] as const).map((t) => (
+                        <button key={t} className={`tab-btn ${ (bg.splitBackgroundType ?? 'solid') === t ? 'active' : ''}`}
+                          onClick={() => upBg({ splitBackgroundType: t })}>
+                          {t === 'solid' ? 'Sólido' : 'Degradado'}
+                        </button>
+                      ))}
+                    </div>
+
+                    {(bg.splitBackgroundType ?? 'solid') === 'solid' && (
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <input type="color"
+                          value={bg.splitBackgroundColor ?? '#1e293b'}
+                          onChange={(e) => upBg({ splitBackgroundColor: e.target.value })}
+                          style={{ width: '40px', height: '40px', cursor: 'pointer', border: '1px solid var(--border-subtle)', borderRadius: '8px', backgroundColor: 'transparent' }} />
+                        <input type="text" className="form-input" style={{ flex: 1 }}
+                          value={bg.splitBackgroundColor ?? '#1e293b'}
+                          onChange={(e) => upBg({ splitBackgroundColor: e.target.value })} />
+                      </div>
+                    )}
+
+                    {(bg.splitBackgroundType ?? 'solid') === 'gradient' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div className="preset-grid">
+                          {PRESET_GRADIENTS.map((g, i) => (
+                            <button key={i}
+                              className={`preset-card ${ (bg.splitBackgroundGradient ?? '') === g.value ? 'active' : ''}`}
+                              style={{ background: g.value, height: '32px', border: 'none', color: '#fff', fontSize: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
+                              onClick={() => upBg({ splitBackgroundGradient: g.value })}>
+                              {(bg.splitBackgroundGradient ?? '') === g.value && <Check size={10} style={{ marginRight: '2px' }} />}{g.name}
+                            </button>
+                          ))}
+                        </div>
+                        <textarea className="form-textarea" style={{ minHeight: '44px', fontSize: '10px' }}
+                          value={bg.splitBackgroundGradient ?? ''}
+                          onChange={(e) => upBg({ splitBackgroundGradient: e.target.value })} />
+                      </div>
+                    )}
+                  </div>
+
+                  <p style={{ fontSize: '10px', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
+                    💡 Puedes arrastrar la línea divisoria directamente en el canvas.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

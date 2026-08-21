@@ -26,6 +26,14 @@ export const DEFAULT_BACKGROUND: SlideBackground = {
   innerShadow: false,
   textShadowColor: 'rgba(0,0,0,0.75)',
   textShadowBlur: 6,
+  // Split background defaults
+  splitEnabled: false,
+  splitPosition: 50,
+  splitDirection: 'vertical',
+  splitBackgroundType: 'solid',
+  splitBackgroundColor: '#1e293b',
+  splitBackgroundGradient: 'linear-gradient(135deg, #0f172a, #1e3a5f)',
+  splitBackgroundImage: '',
 };
 
 // ─── Element factories ────────────────────────────────────────────────────────

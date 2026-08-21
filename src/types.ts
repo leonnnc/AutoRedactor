@@ -48,6 +48,14 @@ export interface SlideBackground {
   // Global text shadow settings (shared by elements that opt-in)
   textShadowColor: string;
   textShadowBlur: number;
+  // ── Split / dual background ──────────────────────────────────────────────────
+  splitEnabled: boolean;
+  splitPosition: number;               // 0–100 (%) along the split axis
+  splitDirection: 'vertical' | 'horizontal';
+  splitBackgroundType: 'solid' | 'gradient' | 'image';
+  splitBackgroundColor: string;
+  splitBackgroundGradient: string;
+  splitBackgroundImage: string;
 }
 
 // ─── Slide ────────────────────────────────────────────────────────────────────
