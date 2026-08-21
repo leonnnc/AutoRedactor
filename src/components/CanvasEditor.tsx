@@ -502,32 +502,66 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   const [showRulers, setShowRulers] = useState(true);
   const [rulerUnit, setRulerUnit] = useState<'px' | '%'>('px');
 
-  return (
-    <div className="canvas-area">
+  // ── Zoom (scroll-wheel) ───────────────────────────────────────────────────
+  const [zoom, setZoom] = useState(1);
+  const canvasAreaRef = useRef<HTMLDivElement>(null);
 
-      {/* ── Ruler toggle button (top right of canvas area) ── */}
-      <button
-        onClick={() => setShowRulers(!showRulers)}
-        className="btn btn-secondary"
-        title={showRulers ? "Ocultar reglas" : "Mostrar reglas"}
-        style={{
-          position: 'absolute',
-          top: 10,
-          right: 14,
-          zIndex: 150,
-          fontSize: '11px',
-          padding: '4px 8px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-          background: showRulers ? 'rgba(99, 102, 241, 0.2)' : 'rgba(19, 19, 26, 0.85)',
-          borderColor: showRulers ? 'rgba(99, 102, 241, 0.6)' : 'var(--border-subtle)',
-          color: showRulers ? '#a5b4fc' : 'var(--text-muted)',
-        }}
-      >
-        <Ruler size={13} />
-        <span>{showRulers ? 'Reglas ON' : 'Reglas'}</span>
-      </button>
+  const handleWheel = useCallback((e: WheelEvent) => {
+    e.preventDefault();
+    setZoom((prev) => {
+      const delta = e.deltaY > 0 ? -0.05 : 0.05;
+      return Math.min(3, Math.max(0.25, Math.round((prev + delta) * 100) / 100));
+    });
+  }, []);
+
+  useEffect(() => {
+    const el = canvasAreaRef.current;
+    if (!el) return;
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, [handleWheel]);
+
+  return (
+    <div className="canvas-area" ref={canvasAreaRef}>
+
+      {/* ── Top-right control bar: Zoom + Ruler toggle ── */}
+      <div style={{
+        position: 'absolute', top: 10, right: 14, zIndex: 150,
+        display: 'flex', alignItems: 'center', gap: '6px',
+      }}>
+        {/* Zoom controls */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '3px',
+          background: 'rgba(13,17,23,0.92)', border: '1px solid var(--border-subtle)',
+          borderRadius: '8px', padding: '3px 8px', fontSize: '11px',
+        }}>
+          <button onClick={() => setZoom(z => Math.max(0.25, Math.round((z - 0.1) * 100) / 100))}
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0 3px', fontSize: '15px', lineHeight: 1 }}>−</button>
+          <span onClick={() => setZoom(1)} title="Clic para 100%"
+            style={{ color: zoom !== 1 ? '#a5b4fc' : 'var(--text-muted)', minWidth: '38px', textAlign: 'center', cursor: 'pointer', fontWeight: '600' }}>
+            {Math.round(zoom * 100)}%
+          </span>
+          <button onClick={() => setZoom(z => Math.min(3, Math.round((z + 0.1) * 100) / 100))}
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0 3px', fontSize: '15px', lineHeight: 1 }}>+</button>
+        </div>
+
+        {/* Ruler toggle */}
+        <button
+          onClick={() => setShowRulers(!showRulers)}
+          className="btn btn-secondary"
+          title={showRulers ? 'Ocultar reglas' : 'Mostrar reglas'}
+          style={{
+            fontSize: '11px', padding: '4px 8px',
+            display: 'flex', alignItems: 'center', gap: '4px',
+            background: showRulers ? 'rgba(99,102,241,0.2)' : 'rgba(19,19,26,0.85)',
+            borderColor: showRulers ? 'rgba(99,102,241,0.6)' : 'var(--border-subtle)',
+            color: showRulers ? '#a5b4fc' : 'var(--text-muted)',
+          }}
+        >
+          <Ruler size={13} />
+          <span>{showRulers ? 'Reglas ON' : 'Reglas'}</span>
+        </button>
+      </div>
 
       {/* ── Floating contextual toolbar ── */}
       {selectedEl && (
@@ -612,9 +646,9 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       )}
 
       {/* ── Canvas + Rulers Container ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', padding: '40px' }}>
         {showRulers && (
-          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '16px' }}>
             {/* Top-Left Corner Box */}
             <div
               onClick={() => setRulerUnit(rulerUnit === 'px' ? '%' : 'px')}
@@ -633,6 +667,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                 color: 'rgba(255, 255, 255, 0.6)',
                 cursor: 'pointer',
                 userSelect: 'none',
+                marginRight: '16px',
               }}
             >
               {rulerUnit}
@@ -650,16 +685,27 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
 
         <div style={{ display: 'flex', alignItems: 'flex-start' }}>
           {showRulers && (
-            /* Vertical Ruler (Left) */
-            <VerticalRuler
-              canvasH={canvasH}
-              fullH={dims.height}
-              selectedEl={selectedEl}
-              unit={rulerUnit}
-            />
+            <div style={{ marginRight: '16px' }}>
+              {/* Vertical Ruler (Left) */}
+              <VerticalRuler
+                canvasH={canvasH}
+                fullH={dims.height}
+                selectedEl={selectedEl}
+                unit={rulerUnit}
+              />
+            </div>
           )}
 
-          {/* Scaled canvas wrapper */}
+          {/* Zoom wrapper — canvas scales with transform, rulers stay fixed */}
+          <div style={{
+            width: `${canvasW}px`,
+            height: `${canvasH}px`,
+            transformOrigin: 'top left',
+            transform: `scale(${zoom})`,
+            flexShrink: 0,
+          }}>
+
+          {/* Slide canvas */}
           <div
             style={{
               width: `${canvasW}px`,
@@ -789,6 +835,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
           ))}
         </div>
           </div>
+          </div>{/* /zoom wrapper */}
         </div>
       </div>
     </div>
