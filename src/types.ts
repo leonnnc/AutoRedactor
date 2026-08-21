@@ -56,6 +56,13 @@ export interface SlideBackground {
   splitBackgroundColor: string;
   splitBackgroundGradient: string;
   splitBackgroundImage: string;
+  splitBgPosition?: 'center' | 'top' | 'bottom' | 'left' | 'right';
+  splitBgSize?: 'cover' | 'contain' | 'auto';
+  splitBgBlur?: number;
+  splitDividerStyle?: 'none' | 'shadow' | 'border' | 'feather' | 'diagonal';
+  splitBorderColor?: string;
+  splitBorderWidth?: number;
+  splitAngle?: number;                // -30 to 30 deg for diagonal
 }
 
 // ─── Slide ────────────────────────────────────────────────────────────────────

@@ -2,7 +2,7 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
 import type { Slide, CanvasElement, SlideBackground, ViewportMode, CustomCanvasSize } from '../types';
 import { getViewportDimensions } from '../utils/captureSlide';
 import { calcTextBoxH } from '../utils/parseSermon';
-import { Bold, Italic, Type, AlignLeft, AlignCenter, AlignRight, Trash2, Plus, Minus } from 'lucide-react';
+import { Bold, Italic, Type, AlignLeft, AlignCenter, AlignRight, Trash2, Plus, Minus, GripVertical, GripHorizontal } from 'lucide-react';
 
 const FONTS = [
   { label: 'Playfair',  value: "'Playfair Display', serif" },
@@ -83,22 +83,84 @@ const buildSlideStyle = (bg: SlideBackground): React.CSSProperties => {
 };
 
 /** Build the CSS style for the second (split) background panel. */
-const buildSplitPanelStyle = (bg: SlideBackground): React.CSSProperties => {
+export const buildSplitPanelStyle = (bg: SlideBackground): React.CSSProperties => {
   const pos = bg.splitPosition ?? 50;
   const dir = bg.splitDirection ?? 'vertical';
+  const dividerStyle = bg.splitDividerStyle ?? 'none';
+  const angle = bg.splitAngle ?? 0;
+  const isVertical = dir === 'vertical';
+
   const base: React.CSSProperties = {
     position: 'absolute',
     zIndex: 0,
-    // clip to the second portion of the slide
-    ...(dir === 'vertical'
-      ? { top: 0, bottom: 0, left: `${pos}%`, right: 0 }
-      : { left: 0, right: 0, top: `${pos}%`, bottom: 0 }),
   };
+
+  if (dividerStyle === 'diagonal') {
+    base.inset = 0;
+    if (isVertical) {
+      const topOffset = Math.max(0, Math.min(100, pos - angle));
+      const bottomOffset = Math.max(0, Math.min(100, pos + angle));
+      base.clipPath = `polygon(${topOffset}% 0%, 100% 0%, 100% 100%, ${bottomOffset}% 100%)`;
+    } else {
+      const leftOffset = Math.max(0, Math.min(100, pos - angle));
+      const rightOffset = Math.max(0, Math.min(100, pos + angle));
+      base.clipPath = `polygon(0% ${leftOffset}%, 100% ${rightOffset}%, 100% 100%, 0% 100%)`;
+    }
+  } else {
+    if (isVertical) {
+      base.top = 0;
+      base.bottom = 0;
+      base.left = `${pos}%`;
+      base.right = 0;
+    } else {
+      base.left = 0;
+      base.right = 0;
+      base.top = `${pos}%`;
+      base.bottom = 0;
+    }
+
+    if (dividerStyle === 'shadow') {
+      base.boxShadow = isVertical
+        ? '-16px 0 32px rgba(0, 0, 0, 0.65)'
+        : '0 -16px 32px rgba(0, 0, 0, 0.65)';
+    } else if (dividerStyle === 'border') {
+      const bColor = bg.splitBorderColor ?? '#ffffff';
+      const bWidth = bg.splitBorderWidth ?? 2;
+      if (isVertical) {
+        base.borderLeft = `${bWidth}px solid ${bColor}`;
+      } else {
+        base.borderTop = `${bWidth}px solid ${bColor}`;
+      }
+    } else if (dividerStyle === 'feather') {
+      base.WebkitMaskImage = isVertical
+        ? 'linear-gradient(to right, transparent 0%, black 18%, black 100%)'
+        : 'linear-gradient(to bottom, transparent 0%, black 18%, black 100%)';
+      base.maskImage = isVertical
+        ? 'linear-gradient(to right, transparent 0%, black 18%, black 100%)'
+        : 'linear-gradient(to bottom, transparent 0%, black 18%, black 100%)';
+    }
+  }
+
   const type = bg.splitBackgroundType ?? 'solid';
-  if (type === 'solid') return { ...base, backgroundColor: bg.splitBackgroundColor ?? '#1e293b' };
-  if (type === 'gradient') return { ...base, background: bg.splitBackgroundGradient ?? 'linear-gradient(135deg,#0f172a,#1e3a5f)' };
-  return { ...base, backgroundColor: '#1e293b' };
+  if (type === 'solid') {
+    base.backgroundColor = bg.splitBackgroundColor ?? '#1e293b';
+  } else if (type === 'gradient') {
+    base.background = bg.splitBackgroundGradient ?? 'linear-gradient(135deg, #0f172a, #1e3a5f)';
+  } else if (type === 'image' && bg.splitBackgroundImage) {
+    base.backgroundImage = `url(${bg.splitBackgroundImage})`;
+    base.backgroundSize = bg.splitBgSize ?? 'cover';
+    base.backgroundPosition = bg.splitBgPosition ?? 'center';
+    base.backgroundRepeat = 'no-repeat';
+    if ((bg.splitBgBlur ?? 0) > 0) {
+      base.filter = `blur(${bg.splitBgBlur}px)`;
+    }
+  } else {
+    base.backgroundColor = bg.splitBackgroundColor ?? '#1e293b';
+  }
+
+  return base;
 };
+
 
 
 // ─── Resize handle positions ──────────────────────────────────────────────────
@@ -541,7 +603,8 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
         {bg.splitEnabled && (
           <div
             onMouseDown={handleSplitDividerMouseDown}
-            title="Arrastra para ajustar la división"
+            title="Arrastra para ajustar la posición del fondo dividido"
+            className="group"
             style={{
               position: 'absolute',
               zIndex: 9,
@@ -551,7 +614,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                     top: 0,
                     bottom: 0,
                     left: `${bg.splitPosition ?? 50}%`,
-                    width: '12px',
+                    width: '16px',
                     transform: 'translateX(-50%)',
                     display: 'flex',
                     alignItems: 'center',
@@ -561,7 +624,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                     left: 0,
                     right: 0,
                     top: `${bg.splitPosition ?? 50}%`,
-                    height: '12px',
+                    height: '16px',
                     transform: 'translateY(-50%)',
                     display: 'flex',
                     alignItems: 'center',
@@ -569,15 +632,29 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                   }),
             }}
           >
+            {/* Grab pill indicator that appears on hover / active */}
             <div
               style={{
-                width: (bg.splitDirection ?? 'vertical') === 'vertical' ? '2px' : '100%',
-                height: (bg.splitDirection ?? 'vertical') === 'vertical' ? '100%' : '2px',
-                background: 'rgba(255, 255, 255, 0.45)',
-                boxShadow: '0 0 4px rgba(0,0,0,0.6)',
-                borderRadius: '1px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '4px',
+                borderRadius: '9999px',
+                background: 'rgba(15, 23, 42, 0.75)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                color: '#ffffff',
+                opacity: 0.6,
+                transition: 'all 0.15s ease',
+                pointerEvents: 'none',
               }}
-            />
+            >
+              {(bg.splitDirection ?? 'vertical') === 'vertical' ? (
+                <GripVertical size={14} />
+              ) : (
+                <GripHorizontal size={14} />
+              )}
+            </div>
           </div>
         )}
 

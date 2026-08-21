@@ -77,6 +77,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
   isExporting, exportProgress,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const splitFileInputRef = useRef<HTMLInputElement>(null);
   const bg = activeSlide?.background;
 
   const upBg = (fields: Partial<SlideBackground>) => {
@@ -90,6 +91,17 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
     reader.onloadend = () => {
       if (typeof reader.result === 'string')
         upBg({ backgroundType: 'image', backgroundImage: reader.result });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSplitImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string')
+        upBg({ splitBackgroundType: 'image', splitBackgroundImage: reader.result });
     };
     reader.readAsDataURL(file);
   };
@@ -246,7 +258,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
               </div>
 
               {bg.splitEnabled && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
                   {/* Direction */}
                   <div>
@@ -267,18 +279,70 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                   <Row
                     label={(bg.splitDirection ?? 'vertical') === 'vertical' ? 'Posición (←→)' : 'Posición (↑↓)'}
                     value={`${bg.splitPosition ?? 50}%`}>
-                    <Slider min={10} max={90} value={bg.splitPosition ?? 50}
+                    <Slider min={5} max={95} value={bg.splitPosition ?? 50}
                       onChange={(v) => upBg({ splitPosition: v })} />
                   </Row>
+
+                  {/* Aspect / Style of Division */}
+                  <div>
+                    <span className="form-label" style={{ fontSize: '10px' }}>Aspecto de la división</span>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px', marginTop: '4px' }}>
+                      {[
+                        { id: 'none', label: 'Limpio', icon: '🚫' },
+                        { id: 'shadow', label: 'Sombra', icon: '🌫️' },
+                        { id: 'border', label: 'Borde', icon: '📏' },
+                        { id: 'feather', label: 'Suave', icon: '🌊' },
+                        { id: 'diagonal', label: 'Diagonal', icon: '📐' },
+                      ].map((item) => (
+                        <button
+                          key={item.id}
+                          className={`btn btn-secondary ${(bg.splitDividerStyle ?? 'none') === item.id ? 'active' : ''}`}
+                          style={{
+                            fontSize: '9px',
+                            padding: '4px 2px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '2px',
+                          }}
+                          onClick={() => upBg({ splitDividerStyle: item.id as any })}
+                        >
+                          <span style={{ fontSize: '12px' }}>{item.icon}</span>
+                          <span>{item.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Conditional options for division aspect */}
+                  {(bg.splitDividerStyle === 'border') && (
+                    <div style={{ background: 'var(--bg-deep)', padding: '8px', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <Row label="Grosor del borde" value={`${bg.splitBorderWidth ?? 2}px`}>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <Slider min={1} max={16} value={bg.splitBorderWidth ?? 2} onChange={(v) => upBg({ splitBorderWidth: v })} />
+                          <input type="color" value={bg.splitBorderColor ?? '#ffffff'} onChange={(e) => upBg({ splitBorderColor: e.target.value })}
+                            style={{ width: '26px', height: '26px', cursor: 'pointer', border: 'none', borderRadius: '4px' }} />
+                        </div>
+                      </Row>
+                    </div>
+                  )}
+
+                  {(bg.splitDividerStyle === 'diagonal') && (
+                    <div style={{ background: 'var(--bg-deep)', padding: '8px', borderRadius: '6px' }}>
+                      <Row label="Inclinación / Ángulo" value={`${bg.splitAngle ?? 10}°`}>
+                        <Slider min={-30} max={30} value={bg.splitAngle ?? 10} onChange={(v) => upBg({ splitAngle: v })} />
+                      </Row>
+                    </div>
+                  )}
 
                   {/* Second background type */}
                   <div>
                     <span className="form-label" style={{ fontSize: '10px' }}>Tipo del 2° fondo</span>
                     <div className="tabs-header" style={{ marginTop: '4px', marginBottom: '8px' }}>
-                      {(['solid', 'gradient'] as const).map((t) => (
+                      {(['solid', 'gradient', 'image'] as const).map((t) => (
                         <button key={t} className={`tab-btn ${ (bg.splitBackgroundType ?? 'solid') === t ? 'active' : ''}`}
                           onClick={() => upBg({ splitBackgroundType: t })}>
-                          {t === 'solid' ? 'Sólido' : 'Degradado'}
+                          {t === 'solid' ? 'Sólido' : t === 'gradient' ? 'Degradado' : 'Imagen'}
                         </button>
                       ))}
                     </div>
@@ -312,10 +376,54 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                           onChange={(e) => upBg({ splitBackgroundGradient: e.target.value })} />
                       </div>
                     )}
+
+                    {bg.splitBackgroundType === 'image' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div className="preset-grid">
+                          {PRESET_IMAGES.map((img, i) => (
+                            <button key={i} className={`preset-card ${(bg.splitBackgroundImage ?? '') === img.value ? 'active' : ''}`}
+                              style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.45),rgba(0,0,0,0.45)),url(${img.value})`, backgroundSize: 'cover', backgroundPosition: 'center', height: '32px', border: 'none', color: '#fff', fontSize: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              onClick={() => upBg({ splitBackgroundImage: img.value })}>
+                              {(bg.splitBackgroundImage ?? '') === img.value && <Check size={10} style={{ marginRight: '2px' }} />}{img.name}
+                            </button>
+                          ))}
+                        </div>
+                        <input type="text" className="form-input" placeholder="URL de imagen para fondo 2..."
+                          value={(bg.splitBackgroundImage ?? '').startsWith('data:') ? '' : (bg.splitBackgroundImage ?? '')}
+                          onChange={(e) => upBg({ splitBackgroundImage: e.target.value })} />
+                        <button className="btn btn-secondary" style={{ fontSize: '12px' }} onClick={() => splitFileInputRef.current?.click()}>
+                          <ImageIcon size={13} /> Subir imagen al 2° fondo
+                        </button>
+                        <input type="file" ref={splitFileInputRef} accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                          onChange={handleSplitImageUpload} style={{ display: 'none' }} />
+
+                        {/* Image controls for split bg */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                          <div>
+                            <span className="form-label" style={{ fontSize: '10px' }}>Posición</span>
+                            <select className="form-select" value={bg.splitBgPosition ?? 'center'} onChange={(e) => upBg({ splitBgPosition: e.target.value as any })}>
+                              {(['center','top','bottom','left','right'] as const).map((p) => <option key={p} value={p}>{p}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <span className="form-label" style={{ fontSize: '10px' }}>Escala</span>
+                            <select className="form-select" value={bg.splitBgSize ?? 'cover'} onChange={(e) => upBg({ splitBgSize: e.target.value as any })}>
+                              <option value="cover">Cover</option>
+                              <option value="contain">Contain</option>
+                              <option value="auto">Auto</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <Row label="Desenfoque 2° fondo" value={(bg.splitBgBlur ?? 0) > 0 ? `${bg.splitBgBlur}px` : 'Off'}>
+                          <Slider min={0} max={20} value={bg.splitBgBlur ?? 0} onChange={(v) => upBg({ splitBgBlur: v })} />
+                        </Row>
+                      </div>
+                    )}
                   </div>
 
                   <p style={{ fontSize: '10px', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
-                    💡 Puedes arrastrar la línea divisoria directamente en el canvas.
+                    💡 Puedes arrastrar el tirador directamente en el canvas para mover la división.
                   </p>
                 </div>
               )}

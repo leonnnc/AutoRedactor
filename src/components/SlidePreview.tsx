@@ -61,26 +61,74 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
   const splitStyle: React.CSSProperties = (() => {
     const isVertical = (bg.splitDirection ?? 'vertical') === 'vertical';
     const pos = bg.splitPosition ?? 50;
+    const dividerStyle = bg.splitDividerStyle ?? 'none';
+    const angle = bg.splitAngle ?? 0;
+
     const base: React.CSSProperties = {
       position: 'absolute',
       zIndex: 0,
-      ...(isVertical
-        ? { top: 0, bottom: 0, left: `${pos}%`, right: 0 }
-        : { left: 0, right: 0, top: `${pos}%`, bottom: 0 }),
     };
+
+    if (dividerStyle === 'diagonal') {
+      base.inset = 0;
+      if (isVertical) {
+        const topOffset = Math.max(0, Math.min(100, pos - angle));
+        const bottomOffset = Math.max(0, Math.min(100, pos + angle));
+        base.clipPath = `polygon(${topOffset}% 0%, 100% 0%, 100% 100%, ${bottomOffset}% 100%)`;
+      } else {
+        const leftOffset = Math.max(0, Math.min(100, pos - angle));
+        const rightOffset = Math.max(0, Math.min(100, pos + angle));
+        base.clipPath = `polygon(0% ${leftOffset}%, 100% ${rightOffset}%, 100% 100%, 0% 100%)`;
+      }
+    } else {
+      if (isVertical) {
+        base.top = 0;
+        base.bottom = 0;
+        base.left = `${pos}%`;
+        base.right = 0;
+      } else {
+        base.left = 0;
+        base.right = 0;
+        base.top = `${pos}%`;
+        base.bottom = 0;
+      }
+
+      if (dividerStyle === 'shadow') {
+        base.boxShadow = isVertical
+          ? '-16px 0 32px rgba(0, 0, 0, 0.65)'
+          : '0 -16px 32px rgba(0, 0, 0, 0.65)';
+      } else if (dividerStyle === 'border') {
+        const bColor = bg.splitBorderColor ?? '#ffffff';
+        const bWidth = bg.splitBorderWidth ?? 2;
+        if (isVertical) {
+          base.borderLeft = `${bWidth}px solid ${bColor}`;
+        } else {
+          base.borderTop = `${bWidth}px solid ${bColor}`;
+        }
+      } else if (dividerStyle === 'feather') {
+        base.WebkitMaskImage = isVertical
+          ? 'linear-gradient(to right, transparent 0%, black 18%, black 100%)'
+          : 'linear-gradient(to bottom, transparent 0%, black 18%, black 100%)';
+        base.maskImage = isVertical
+          ? 'linear-gradient(to right, transparent 0%, black 18%, black 100%)'
+          : 'linear-gradient(to bottom, transparent 0%, black 18%, black 100%)';
+      }
+    }
+
     if (bg.splitBackgroundType === 'solid') {
       return { ...base, backgroundColor: bg.splitBackgroundColor ?? '#1e293b' };
     }
     if (bg.splitBackgroundType === 'gradient') {
-      return { ...base, background: bg.splitBackgroundGradient ?? 'linear-gradient(135deg, #1e293b, #0f172a)' };
+      return { ...base, background: bg.splitBackgroundGradient ?? 'linear-gradient(135deg, #0f172a, #1e3a5f)' };
     }
     if (bg.splitBackgroundType === 'image' && bg.splitBackgroundImage) {
       return {
         ...base,
         backgroundImage: `url(${bg.splitBackgroundImage})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
+        backgroundSize: bg.splitBgSize ?? 'cover',
+        backgroundPosition: bg.splitBgPosition ?? 'center',
         backgroundRepeat: 'no-repeat',
+        filter: (bg.splitBgBlur ?? 0) > 0 ? `blur(${bg.splitBgBlur}px)` : undefined,
       };
     }
     return { ...base, backgroundColor: bg.splitBackgroundColor ?? '#1e293b' };

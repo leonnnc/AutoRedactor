@@ -78,24 +78,78 @@ export const captureFullResolutionSlide = async (
   if (bg.splitEnabled) {
     const isVertical = (bg.splitDirection ?? 'vertical') === 'vertical';
     const pos = bg.splitPosition ?? 50;
+    const dividerStyle = bg.splitDividerStyle ?? 'none';
+    const angle = bg.splitAngle ?? 0;
     const splitEl = document.createElement('div');
-    Object.assign(splitEl.style, {
+
+    const splitStyles: Partial<CSSStyleDeclaration> = {
       position: 'absolute',
       zIndex: '0',
-      ...(isVertical
-        ? { top: '0', bottom: '0', left: `${pos}%`, right: '0' }
-        : { left: '0', right: '0', top: `${pos}%`, bottom: '0' }),
-    } as Partial<CSSStyleDeclaration>);
+    };
+
+    if (dividerStyle === 'diagonal') {
+      splitStyles.left = '0';
+      splitStyles.right = '0';
+      splitStyles.top = '0';
+      splitStyles.bottom = '0';
+      if (isVertical) {
+        const topOffset = Math.max(0, Math.min(100, pos - angle));
+        const bottomOffset = Math.max(0, Math.min(100, pos + angle));
+        splitStyles.clipPath = `polygon(${topOffset}% 0%, 100% 0%, 100% 100%, ${bottomOffset}% 100%)`;
+      } else {
+        const leftOffset = Math.max(0, Math.min(100, pos - angle));
+        const rightOffset = Math.max(0, Math.min(100, pos + angle));
+        splitStyles.clipPath = `polygon(0% ${leftOffset}%, 100% ${rightOffset}%, 100% 100%, 0% 100%)`;
+      }
+    } else {
+      if (isVertical) {
+        splitStyles.top = '0';
+        splitStyles.bottom = '0';
+        splitStyles.left = `${pos}%`;
+        splitStyles.right = '0';
+      } else {
+        splitStyles.left = '0';
+        splitStyles.right = '0';
+        splitStyles.top = `${pos}%`;
+        splitStyles.bottom = '0';
+      }
+
+      if (dividerStyle === 'shadow') {
+        splitStyles.boxShadow = isVertical
+          ? '-16px 0 32px rgba(0, 0, 0, 0.65)'
+          : '0 -16px 32px rgba(0, 0, 0, 0.65)';
+      } else if (dividerStyle === 'border') {
+        const bColor = bg.splitBorderColor ?? '#ffffff';
+        const bWidth = bg.splitBorderWidth ?? 2;
+        if (isVertical) {
+          splitStyles.borderLeft = `${bWidth}px solid ${bColor}`;
+        } else {
+          splitStyles.borderTop = `${bWidth}px solid ${bColor}`;
+        }
+      } else if (dividerStyle === 'feather') {
+        splitStyles.maskImage = isVertical
+          ? 'linear-gradient(to right, transparent 0%, black 18%, black 100%)'
+          : 'linear-gradient(to bottom, transparent 0%, black 18%, black 100%)';
+        splitStyles.webkitMaskImage = isVertical
+          ? 'linear-gradient(to right, transparent 0%, black 18%, black 100%)'
+          : 'linear-gradient(to bottom, transparent 0%, black 18%, black 100%)';
+      }
+    }
+
+    Object.assign(splitEl.style, splitStyles);
 
     if (bg.splitBackgroundType === 'solid') {
       splitEl.style.backgroundColor = bg.splitBackgroundColor ?? '#1e293b';
     } else if (bg.splitBackgroundType === 'gradient') {
-      splitEl.style.background = bg.splitBackgroundGradient ?? 'linear-gradient(135deg, #1e293b, #0f172a)';
+      splitEl.style.background = bg.splitBackgroundGradient ?? 'linear-gradient(135deg, #0f172a, #1e3a5f)';
     } else if (bg.splitBackgroundType === 'image' && bg.splitBackgroundImage) {
       splitEl.style.backgroundImage = `url(${bg.splitBackgroundImage})`;
-      splitEl.style.backgroundSize = 'cover';
-      splitEl.style.backgroundPosition = 'center';
+      splitEl.style.backgroundSize = bg.splitBgSize ?? 'cover';
+      splitEl.style.backgroundPosition = bg.splitBgPosition ?? 'center';
       splitEl.style.backgroundRepeat = 'no-repeat';
+      if ((bg.splitBgBlur ?? 0) > 0) {
+        splitEl.style.filter = `blur(${bg.splitBgBlur}px)`;
+      }
     } else {
       splitEl.style.backgroundColor = bg.splitBackgroundColor ?? '#1e293b';
     }

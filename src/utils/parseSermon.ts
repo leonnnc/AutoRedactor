@@ -34,6 +34,13 @@ export const DEFAULT_BACKGROUND: SlideBackground = {
   splitBackgroundColor: '#1e293b',
   splitBackgroundGradient: 'linear-gradient(135deg, #0f172a, #1e3a5f)',
   splitBackgroundImage: '',
+  splitBgPosition: 'center',
+  splitBgSize: 'cover',
+  splitBgBlur: 0,
+  splitDividerStyle: 'none',
+  splitBorderColor: '#ffffff',
+  splitBorderWidth: 2,
+  splitAngle: 0,
 };
 
 // ─── Element factories ────────────────────────────────────────────────────────
