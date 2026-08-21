@@ -2,7 +2,8 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
 import type { Slide, CanvasElement, SlideBackground, ViewportMode, CustomCanvasSize } from '../types';
 import { getViewportDimensions } from '../utils/captureSlide';
 import { calcTextBoxH } from '../utils/parseSermon';
-import { Bold, Italic, Type, AlignLeft, AlignCenter, AlignRight, Trash2, Plus, Minus, GripVertical, GripHorizontal } from 'lucide-react';
+import { Bold, Italic, Type, AlignLeft, AlignCenter, AlignRight, Trash2, Plus, Minus, GripVertical, GripHorizontal, Ruler } from 'lucide-react';
+import { HorizontalRuler, VerticalRuler } from './Ruler';
 
 const FONTS = [
   { label: 'Playfair',  value: "'Playfair Display', serif" },
@@ -497,8 +498,36 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   }, [handleSplitMouseMove, handleSplitMouseUp]);
 
 
+  // ── Rulers ────────────────────────────────────────────────────────────────
+  const [showRulers, setShowRulers] = useState(true);
+  const [rulerUnit, setRulerUnit] = useState<'px' | '%'>('px');
+
   return (
     <div className="canvas-area">
+
+      {/* ── Ruler toggle button (top right of canvas area) ── */}
+      <button
+        onClick={() => setShowRulers(!showRulers)}
+        className="btn btn-secondary"
+        title={showRulers ? "Ocultar reglas" : "Mostrar reglas"}
+        style={{
+          position: 'absolute',
+          top: 10,
+          right: 14,
+          zIndex: 150,
+          fontSize: '11px',
+          padding: '4px 8px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          background: showRulers ? 'rgba(99, 102, 241, 0.2)' : 'rgba(19, 19, 26, 0.85)',
+          borderColor: showRulers ? 'rgba(99, 102, 241, 0.6)' : 'var(--border-subtle)',
+          color: showRulers ? '#a5b4fc' : 'var(--text-muted)',
+        }}
+      >
+        <Ruler size={13} />
+        <span>{showRulers ? 'Reglas ON' : 'Reglas'}</span>
+      </button>
 
       {/* ── Floating contextual toolbar ── */}
       {selectedEl && (
@@ -582,19 +611,67 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
         </div>
       )}
 
-      {/* Scaled canvas wrapper */}
-      <div
-        style={{
-          width: `${canvasW}px`,
-          height: `${canvasH}px`,
-          position: 'relative',
-          boxShadow: '0 16px 40px rgba(0,0,0,0.5)',
-          borderRadius: '8px',
-          overflow: 'hidden',
-          cursor: 'default',
-        }}
-        onMouseDown={() => onSelectElement(null)}
-      >
+      {/* ── Canvas + Rulers Container ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+        {showRulers && (
+          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+            {/* Top-Left Corner Box */}
+            <div
+              onClick={() => setRulerUnit(rulerUnit === 'px' ? '%' : 'px')}
+              title={`Unidad: ${rulerUnit} (Clic para cambiar a ${rulerUnit === 'px' ? '%' : 'px'})`}
+              style={{
+                width: '20px',
+                height: '20px',
+                background: '#0d1117',
+                borderRight: '1px solid rgba(255, 255, 255, 0.1)',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '8px',
+                fontWeight: '700',
+                color: 'rgba(255, 255, 255, 0.6)',
+                cursor: 'pointer',
+                userSelect: 'none',
+              }}
+            >
+              {rulerUnit}
+            </div>
+
+            {/* Horizontal Ruler (Top) */}
+            <HorizontalRuler
+              canvasW={canvasW}
+              fullW={dims.width}
+              selectedEl={selectedEl}
+              unit={rulerUnit}
+            />
+          </div>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+          {showRulers && (
+            /* Vertical Ruler (Left) */
+            <VerticalRuler
+              canvasH={canvasH}
+              fullH={dims.height}
+              selectedEl={selectedEl}
+              unit={rulerUnit}
+            />
+          )}
+
+          {/* Scaled canvas wrapper */}
+          <div
+            style={{
+              width: `${canvasW}px`,
+              height: `${canvasH}px`,
+              position: 'relative',
+              boxShadow: '0 16px 40px rgba(0,0,0,0.5)',
+              borderRadius: showRulers ? '0 0 8px 0' : '8px',
+              overflow: 'hidden',
+              cursor: 'default',
+            }}
+            onMouseDown={() => onSelectElement(null)}
+          >
         {/* ── Background layers ── */}
         <div style={buildSlideStyle(bg)} />
 
@@ -710,6 +787,8 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
               shadowBlur={bg.textShadowBlur}
             />
           ))}
+        </div>
+          </div>
         </div>
       </div>
     </div>
