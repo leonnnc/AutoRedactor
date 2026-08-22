@@ -37,5 +37,5 @@ jobs:
           port: 21
           protocol: ftps
           local-dir: ./dist/
-          server-dir: /public_html/autoredactor.aplicatodos.com/
+          server-dir: ./
           dangerous-clean-slate: false
