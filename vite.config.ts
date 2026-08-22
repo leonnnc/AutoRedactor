@@ -43,7 +43,7 @@ export default defineConfig({
       },
     }),
   ],
-  base: process.env.GITHUB_ACTIONS ? '/AutoRedactor/' : '/',
+  base: process.env.BUILD_FOR_PAGES === 'true' ? '/AutoRedactor/' : '/',
   build: {
     chunkSizeWarningLimit: 1600,
   }
