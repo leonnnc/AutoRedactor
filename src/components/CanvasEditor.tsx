@@ -524,11 +524,21 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   return (
     <div className="canvas-area" ref={canvasAreaRef}>
 
-      {/* ── Top-right control bar: Zoom + Ruler toggle ── */}
+      {/* ── Top-right control bar: Resolution + Zoom + Ruler toggle ── */}
       <div style={{
-        position: 'absolute', top: 10, right: 14, zIndex: 150,
+        position: 'absolute', top: 30, right: 14, zIndex: 150,
         display: 'flex', alignItems: 'center', gap: '6px',
       }}>
+        {/* Resolution indicator */}
+        <div style={{
+          display: 'flex', alignItems: 'center',
+          background: 'rgba(13,17,23,0.92)', border: '1px solid var(--border-subtle)',
+          borderRadius: '8px', padding: '5px 10px', fontSize: '11px', color: 'var(--text-muted)',
+          fontWeight: '500'
+        }}>
+          {dims.width} × {dims.height} px
+        </div>
+
         {/* Zoom controls */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: '3px',
@@ -645,58 +655,45 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
         </div>
       )}
 
-      {/* ── Canvas + Rulers Container ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', padding: '40px' }}>
-        {showRulers && (
-          <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '16px' }}>
-            {/* Top-Left Corner Box */}
+      {/* ── Fixed Rulers at edges of canvas area ── */}
+      {showRulers && (
+        <>
+          {/* Top Edge: Horizontal Ruler */}
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 20, zIndex: 100, display: 'flex' }}>
             <div
               onClick={() => setRulerUnit(rulerUnit === 'px' ? '%' : 'px')}
               title={`Unidad: ${rulerUnit} (Clic para cambiar a ${rulerUnit === 'px' ? '%' : 'px'})`}
               style={{
-                width: '20px',
-                height: '20px',
-                background: '#0d1117',
-                borderRight: '1px solid rgba(255, 255, 255, 0.1)',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '8px',
-                fontWeight: '700',
-                color: 'rgba(255, 255, 255, 0.6)',
-                cursor: 'pointer',
-                userSelect: 'none',
-                marginRight: '16px',
+                width: '20px', height: '20px', flexShrink: 0,
+                background: '#0d1117', borderRight: '1px solid rgba(255,255,255,0.1)', borderBottom: '1px solid rgba(255,255,255,0.1)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '8px', fontWeight: '700', color: 'rgba(255,255,255,0.6)',
+                cursor: 'pointer', userSelect: 'none', zIndex: 101,
               }}
             >
               {rulerUnit}
             </div>
-
-            {/* Horizontal Ruler (Top) */}
-            <HorizontalRuler
-              canvasW={canvasW}
-              fullW={dims.width}
-              selectedEl={selectedEl}
-              unit={rulerUnit}
-            />
-          </div>
-        )}
-
-        <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-          {showRulers && (
-            <div style={{ marginRight: '16px' }}>
-              {/* Vertical Ruler (Left) */}
-              <VerticalRuler
-                canvasH={canvasH}
-                fullH={dims.height}
-                selectedEl={selectedEl}
-                unit={rulerUnit}
-              />
+            <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#0d1117', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+              <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+                <HorizontalRuler canvasW={canvasW} fullW={dims.width} zoom={zoom} selectedEl={selectedEl} unit={rulerUnit} />
+              </div>
             </div>
-          )}
+          </div>
 
-          {/* Zoom wrapper — canvas scales with transform, rulers stay fixed */}
+          {/* Left Edge: Vertical Ruler */}
+          <div style={{ position: 'absolute', top: 20, left: 0, bottom: 0, width: 20, zIndex: 100, background: '#0d1117', borderRight: '1px solid rgba(255, 255, 255, 0.1)' }}>
+            <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)' }}>
+                <VerticalRuler canvasH={canvasH} fullH={dims.height} zoom={zoom} selectedEl={selectedEl} unit={rulerUnit} />
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Canvas Container ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', padding: '40px', width: '100%', height: '100%', justifyContent: 'center' }}>
+          {/* Zoom wrapper — canvas scales with transform */}
           <div style={{
             width: `${canvasW}px`,
             height: `${canvasH}px`,
@@ -836,7 +833,6 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
         </div>
           </div>
           </div>{/* /zoom wrapper */}
-        </div>
       </div>
     </div>
   );
