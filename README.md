@@ -1,101 +1,214 @@
-# AutoRedactor 📖✨
+<div align="center">
 
-**AutoRedactor** es una aplicación web premium, moderna y responsiva diseñada específicamente para pastores, predicadores y líderes ministeriales. Permite recibir bosquejos o textos de prédicas, extraer y formatear versículos bíblicos de forma automática, y diseñar diapositivas visualmente impactantes para proyectar en pantallas, tabletas o dispositivos móviles.
+<img src="public/icon-512.jpg" width="120" alt="AutoRedactor logo" />
 
-El sistema funciona **100% en el cliente (offline)** y cuenta con potentes capacidades de exportación a PowerPoint (.pptx), PDF y colecciones de imágenes en alta definición (.jpg / .zip).
+# ✨ AutoRedactor
 
----
+**Editor profesional de diapositivas para prédicas e iglesias**
+Crea, personaliza y exporta presentaciones bíblicas — en segundos.
 
-## 🌟 Características Principales
+[![Version](https://img.shields.io/badge/versión-3.4.5-6366f1?style=for-the-badge)](https://github.com/leonnnc/AutoRedactor/releases)
+[![Live Demo](https://img.shields.io/badge/🌐_Demo_en_vivo-GitHub_Pages-0ea5e9?style=for-the-badge)](https://leonnnc.github.io/AutoRedactor/)
+[![React](https://img.shields.io/badge/React-19-61dafb?style=for-the-badge&logo=react)](https://react.dev)
+[![Tauri](https://img.shields.io/badge/Tauri-2-ffc131?style=for-the-badge&logo=tauri)](https://tauri.app)
+[![PWA](https://img.shields.io/badge/PWA-Instalable-a855f7?style=for-the-badge)](https://leonnnc.github.io/AutoRedactor/)
 
-### 1. Procesamiento Inteligente de Prédicas
-* **División Automática**: Separa el texto de tu bosquejo en diapositivas individuales por párrafos (doble salto de línea) o mediante el delimitador manual `---`.
-* **Detección de Citas Bíblicas**: Identifica de forma automática citas en el texto como `Juan 3:16`, `Mateo 6:33 (NVI)` o `1 Crónicas 29:3 "TLA"`.
-  * **Extracción Inteligente**: Si escribes solo la cita, el sistema busca y extrae automáticamente el texto bíblico desde las bases de datos locales.
-  * **Soporte de Traducciones**: Reconoce el sufijo de la versión (ej: `TLA`, `NVI`, `DHH`) directamente en el texto del bosquejo y aplica la traducción correspondiente.
-
-### 2. Base de Datos Bíblica Offline (7 Versiones)
-El proyecto incluye bases de datos estáticas en formato JSON cargadas dinámicamente y bajo demanda para evitar el uso de APIs externas o conexión a internet:
-* **RVR1960** (Reina Valera 1960)
-* **NVI** (Nueva Versión Internacional)
-* **TLA** (Traducción en Lenguaje Actual)
-* **NTV** (Nueva Traducción Viviente)
-* **LBLA** (La Biblia de las Américas)
-* **DHH** (Dios Habla Hoy)
-* **NBLA** (Nueva Biblia de las Américas)
-
-### 3. Buscador Bíblico Integrado
-* **Búsqueda por Referencia**: Selecciona Libro, Capítulo y rango de Versículos en cualquiera de las 7 versiones disponibles e insértalos directamente como una nueva diapositiva.
-* **Búsqueda Global por Palabras Clave**: Escribe palabras como *"fe"*, *"fortaleza"* o *"esperanza"* y el buscador buscará coincidencias en toda la Biblia en milisegundos.
-
-### 4. Lienzo de Previsualización Multidispositivo
-* Alterna la vista del lienzo para simular múltiples pantallas:
-  * **Desktop**: Relación 16:9 (1920x1080 escalado proporcionalmente al 50%).
-  * **Tableta**: Relación 4:3 (1024x768 escalado al 70%).
-  * **Móvil**: Relación 9:16 (1080x1920 escalado al 28%).
-* Navegación rápida entre diapositivas en la barra superior.
-
-### 5. Edición Estilizada y Personalización Premium
-* **Tipografía**: Selección de fuentes elegantes preinstaladas y cargadas desde Google Fonts (*Inter*, *Montserrat*, *Playfair Display*, *Lora*, *Cinzel*). Controles de tamaño, interlineado, color, negrita, cursiva y mayúsculas.
-* **Posicionamiento**: Alineación de texto (izquierda, centro, derecha, justificado) y distribución vertical/horizontal mediante una cuadrícula visual de 3x3 (Flexbox).
-* **Sombras**: Añade sombreado de texto personalizable (difuminado y color) para asegurar legibilidad en cualquier fondo.
-* **Fondos**:
-  * **Sólidos**: Paletas de colores curadas y selector personalizado.
-  * **Degradados**: Fondos lineales premium listos para usar (Midnight Purple, Warm Ember, Deep Sea...).
-  * **Imágenes**: Pega URLs de imágenes o sube tus propios archivos locales (JPG / PNG).
-  * **Capa Superpuesta (Overlay)**: Añade un filtro de color oscuro con opacidad regulable sobre las imágenes de fondo para garantizar la perfecta lectura del texto.
-* **Ámbito del Estilo**: Modifica estilos globalmente para toda la presentación o activa "Solo Esta" para darle un diseño único a una diapositiva especial (ej: un versículo dorado).
-
-### 6. Sistema de Exportación en Alta Definición
-El renderizado se realiza en un contenedor del DOM oculto a resolución nativa completa (sin escalado de previsualización) para asegurar descargas ultra nítidas y sin deformaciones:
-* **JPG Actual**: Descarga la diapositiva seleccionada en formato de imagen JPG.
-* **ZIP Imágenes**: Exporta toda la presentación como una colección ordenada de imágenes empaquetadas en un archivo `.zip`.
-* **Exportar PDF**: Genera un archivo PDF horizontal con una diapositiva de alta calidad por página.
-* **PowerPoint (.pptx)**: Genera una presentación nativa de PowerPoint donde cada diapositiva tiene insertada su imagen renderizada a pantalla completa, garantizando precisión de pixel y fidelidad tipográfica en cualquier equipo.
+</div>
 
 ---
 
-## 🛠️ Tecnologías Utilizadas
+## ¿Qué es AutoRedactor?
 
-* **Framework**: React (con TypeScript) + Vite.
-* **Estilos**: CSS Nativo Moderno (Flexbox, CSS Grid, variables CSS, transiciones, animaciones).
-* **Iconos**: Lucide React.
-* **Render de Diapositivas**: html-to-image (DOM a Canvas/JPEG).
-* **Compilación de PDF**: jsPDF.
-* **Compilación de PowerPoint**: pptxgenjs.
-* **Compilación de ZIP**: JSZip.
+**AutoRedactor** es una aplicación web progresiva (PWA) y de escritorio para Windows diseñada para iglesias, pastores y líderes de alabanza que necesitan preparar **diapositivas de prédicas y versículos bíblicos** de manera rápida, visual y profesional.
+
+Escribe o pega el texto de tu prédica, y la aplicación lo divide automáticamente en diapositivas listas para proyectar, con control total sobre diseño, tipografía, fondos e imágenes.
+
+> **Sin suscripciones. Sin límites. 100% gratis y de código abierto.**
 
 ---
 
-## 🚀 Instalación y Uso Local
+## Demo en vivo
 
-Sigue estos pasos para ejecutar la aplicación en tu entorno local:
+**[https://leonnnc.github.io/AutoRedactor/](https://leonnnc.github.io/AutoRedactor/)**
 
-### Requisitos Previos
-* Tener instalado **Node.js** (versión 18 o superior recomendada).
-* Tener instalado **npm** (incluido por defecto con Node.js).
+Funciona directamente en el navegador. También puedes instalarlo como app de escritorio (ver más abajo).
 
-### Pasos de Configuración
+---
 
-1. **Clonar el repositorio**:
-   ```bash
-   git clone https://github.com/leonnnc/autoredactor.git
-   cd autoredactor
-   ```
+## Características principales
 
-2. **Instalar las dependencias**:
-   ```bash
-   npm install
-   ```
+### Editor de Prédicas
+- **Parseo automático de texto**: Pega el texto de tu prédica y la app lo divide en diapositivas automáticamente por párrafos o frases.
+- **Búsqueda bíblica integrada**: Busca versículos en la Biblia (RVR 1960) y agrégalos con un clic.
+- **Añadir todos de una vez**: Agrega múltiples versículos a todas tus diapositivas en un solo botón.
 
-3. **Iniciar el servidor de desarrollo**:
-   ```bash
-   npm run dev
-   ```
-   Abre tu navegador en la URL indicada en la terminal (por defecto, **http://localhost:5173/** o la siguiente libre).
+### Editor Visual (Canvas)
+- **Lienzo interactivo**: Arrastra, redimensiona y edita elementos directamente sobre la diapositiva.
+- **Barra de herramientas flotante**: Al seleccionar un texto aparece una barra contextual para cambiar fuente, tamaño, color, negrita, cursiva, mayúsculas y alineación.
+- **Zoom con la rueda del mouse**: Acerca y aleja el lienzo (25% – 300%) para editar con precisión.
+- **Reglas de precisión (estilo Office)**: Reglas horizontal y vertical pegadas a los bordes del espacio de trabajo, con el 0 en el centro. Se actualizan con el zoom.
+- **Indicador de resolución**: Muestra las dimensiones exactas del lienzo en píxeles.
 
-4. **Compilar para producción (opcional)**:
-   ```bash
-   npm run build
-   ```
-   Los archivos listos para desplegar se generarán en la carpeta `/dist`.
+### Fondos de Diapositiva
+- **Fondo único**: Color sólido, gradiente o imagen con control de posición, tamaño y blur.
+- **Doble fondo (Split Background)**: Divide la diapositiva en dos paneles con fondos independientes.
+  - Dirección horizontal o vertical.
+  - Arrastra el divisor para mover la separación en tiempo real.
+  - 5 estilos de división: Limpio, Sombra, Borde, Suave, Diagonal.
+- **Efectos**: Overlay de color, gradiente, viñeta y sombra interior.
+- **Sombra de texto**: Color y desenfoque para todos los elementos.
+
+### Formatos de Salida
+- **Modos de visualización**: Escritorio (16:9), Tableta (4:3), Móvil (9:16) y tamaño personalizado.
+- **Exportación PDF**: Todas las diapositivas en un archivo PDF de alta calidad.
+- **Exportación PPTX**: Compatible con Microsoft PowerPoint.
+- **Exportación ZIP**: Cada diapositiva como imagen PNG individual.
+- **Vista previa en tiempo real**: Miniaturas actualizadas mientras editas.
+
+### Instalación como App
+- **PWA**: Instálala desde Chrome o Edge como app de escritorio. Funciona sin internet.
+- **App nativa para Windows (.exe / .msi)**: Instalador real generado con Tauri (~10 MB).
+
+---
+
+## Instalación y uso
+
+### Opción 1 — En el navegador (sin instalar nada)
+
+1. Ve a **[https://leonnnc.github.io/AutoRedactor/](https://leonnnc.github.io/AutoRedactor/)**
+2. ¡Listo! No necesitas cuenta ni descarga.
+
+### Opción 2 — Instalar como PWA
+
+1. Abre la demo en **Chrome o Edge**.
+2. Haz clic en el ícono de instalación en la barra de direcciones.
+3. La app quedará en tu menú inicio. **Funciona sin internet.**
+
+### Opción 3 — Instalador nativo para Windows
+
+Descarga desde [Releases](https://github.com/leonnnc/AutoRedactor/releases):
+
+- `AutoRedactor_3.4.5_x64_en-US.msi` — Instalador MSI (recomendado)
+- `AutoRedactor_3.4.5_x64-setup.exe` — Instalador con asistente
+
+---
+
+## Desarrollo local
+
+### Pre-requisitos
+
+- [Node.js 20+](https://nodejs.org/)
+- [Git](https://git-scm.com/)
+- Para compilar la app de escritorio: [Rust](https://rustup.rs/)
+
+### Pasos
+
+```bash
+# 1. Clonar el repositorio
+git clone https://github.com/leonnnc/AutoRedactor.git
+cd AutoRedactor
+
+# 2. Instalar dependencias
+npm install
+
+# 3. Iniciar servidor de desarrollo
+npm run dev
+# Abre http://localhost:5173
+
+# 4. Compilar para producción (web)
+npm run build
+
+# 5. Compilar app de escritorio para Windows
+npm run tauri:build
+# Los instaladores quedan en src-tauri/target/release/bundle/
+```
+
+---
+
+## Tecnologías utilizadas
+
+| Tecnología | Propósito |
+|---|---|
+| React 19 | Interfaz de usuario |
+| TypeScript | Tipado estático |
+| Vite 8 | Bundler ultra-rápido |
+| Tauri 2 | App nativa de escritorio para Windows |
+| vite-plugin-pwa | Soporte PWA instalable |
+| html2canvas | Renderizado para exportar diapositivas |
+| jsPDF | Exportación a PDF |
+| PptxGenJS | Exportación a PowerPoint |
+| JSZip | Exportación en ZIP de imágenes |
+| lucide-react | Íconos |
+| GitHub Actions | Deploy automático a GitHub Pages |
+
+---
+
+## Estructura del proyecto
+
+```
+AutoRedactor/
+├── src/
+│   ├── components/
+│   │   ├── CanvasEditor.tsx      # Editor visual con zoom y reglas
+│   │   ├── EditorPanel.tsx       # Panel de fondos, efectos y exportación
+│   │   ├── SermonInputPanel.tsx  # Entrada de texto y búsqueda bíblica
+│   │   ├── SlidePreview.tsx      # Miniaturas de diapositivas
+│   │   └── Ruler.tsx             # Reglas horizontal y vertical
+│   ├── utils/
+│   │   ├── captureSlide.ts       # Lógica de exportación
+│   │   └── parseSermon.ts        # Parser de texto a diapositivas
+│   ├── types.ts                  # Tipos TypeScript compartidos
+│   └── index.css                 # Estilos globales (dark theme)
+├── src-tauri/                    # App de escritorio (Tauri/Rust)
+│   ├── tauri.conf.json           # Configuración de ventana y bundle
+│   └── src/main.rs               # Punto de entrada nativo
+├── public/
+│   └── bibles/                   # Biblia RVR 1960 en JSON
+└── .github/workflows/
+    └── gh-pages.yml              # CI/CD automático a GitHub Pages
+```
+
+---
+
+## Hoja de ruta
+
+- [x] Editor de canvas con drag and drop
+- [x] Fondos duales con 5 estilos de división
+- [x] Búsqueda bíblica integrada (RVR 1960)
+- [x] Exportación PDF, PPTX y ZIP
+- [x] Zoom con rueda del mouse
+- [x] Reglas de precisión estilo Office
+- [x] PWA instalable sin internet
+- [x] App nativa para Windows (Tauri)
+- [ ] Soporte para más versiones bíblicas (NVI, NTV, LBLA)
+- [ ] Plantillas prediseñadas
+- [ ] Historial de cambios (deshacer/rehacer)
+- [ ] Sincronización en la nube
+
+---
+
+## Contribuir
+
+¡Las contribuciones son bienvenidas!
+
+1. Haz un fork del repositorio.
+2. Crea una rama: `git checkout -b feature/mi-nueva-funcion`
+3. Confirma tus cambios: `git commit -m "feat: descripción"`
+4. Empuja tu rama: `git push origin feature/mi-nueva-funcion`
+5. Abre un Pull Request.
+
+---
+
+## Licencia
+
+Este proyecto está bajo la licencia **MIT**. Úsalo, modifícalo y distribúyelo libremente.
+
+---
+
+<div align="center">
+
+Hecho con ❤️ para la iglesia
+
+**[Demo en vivo](https://leonnnc.github.io/AutoRedactor/)** · **[Reportar un error](https://github.com/leonnnc/AutoRedactor/issues)** · **[Sugerir una función](https://github.com/leonnnc/AutoRedactor/issues)**
+
+</div>
