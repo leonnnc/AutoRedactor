@@ -205,18 +205,42 @@ export const captureFullResolutionSlide = async (
     } as Partial<CSSStyleDeclaration>);
 
     if (el.type === 'image' && el.src) {
-      const img = document.createElement('img');
-      img.src = el.src;
-      img.crossOrigin = 'anonymous';
-      Object.assign(img.style, {
-        width: '100%',
-        height: '100%',
-        objectFit: el.objectFit || 'contain',
+      const cx = el.cropX ?? 0;
+      const cy = el.cropY ?? 0;
+      const cw = el.cropW ?? 100;
+      const ch = el.cropH ?? 100;
+      const hasCrop = cx > 0 || cy > 0 || cw < 100 || ch < 100;
+
+      // Crop container — overflow clips the image to visible region
+      Object.assign(wrapper.style, {
+        overflow: 'hidden',
         borderRadius: `${el.borderRadius || 0}px`,
         opacity: String(el.opacity ?? 1),
         filter: el.shadow ? 'drop-shadow(0 10px 20px rgba(0,0,0,0.5))' : '',
-        ...(el.rotation !== 0 ? { transform: `rotate(${el.rotation}deg)` } : {}),
+        position: 'relative',
       } as Partial<CSSStyleDeclaration>);
+
+      const img = document.createElement('img');
+      img.src = el.src;
+      img.crossOrigin = 'anonymous';
+      if (hasCrop) {
+        Object.assign(img.style, {
+          position: 'absolute',
+          width: `${100 / (cw / 100)}%`,
+          height: `${100 / (ch / 100)}%`,
+          left: `${-(cx / cw) * 100}%`,
+          top: `${-(cy / ch) * 100}%`,
+          objectFit: 'fill',
+          ...(el.rotation !== 0 ? { transform: `rotate(${el.rotation}deg)` } : {}),
+        } as Partial<CSSStyleDeclaration>);
+      } else {
+        Object.assign(img.style, {
+          width: '100%',
+          height: '100%',
+          objectFit: el.objectFit || 'fill',
+          ...(el.rotation !== 0 ? { transform: `rotate(${el.rotation}deg)` } : {}),
+        } as Partial<CSSStyleDeclaration>);
+      }
       wrapper.appendChild(img);
       root.appendChild(wrapper);
       continue;

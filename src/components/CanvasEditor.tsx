@@ -2,7 +2,7 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
 import type { Slide, CanvasElement, SlideBackground, ViewportMode, CustomCanvasSize } from '../types';
 import { getViewportDimensions } from '../utils/captureSlide';
 import { calcTextBoxH } from '../utils/parseSermon';
-import { Bold, Italic, Type, AlignLeft, AlignCenter, AlignRight, Trash2, Plus, Minus, GripVertical, GripHorizontal, Ruler, Image, Upload, Layers } from 'lucide-react';
+import { Bold, Italic, Type, AlignLeft, AlignCenter, AlignRight, Trash2, Plus, Minus, GripVertical, GripHorizontal, Ruler, Image, Upload, Layers, Crop, Check } from 'lucide-react';
 import { HorizontalRuler, VerticalRuler } from './Ruler';
 
 const FONTS = [
@@ -278,6 +278,13 @@ const CanvasElementNode: React.FC<{
   };
 
   if (el.type === 'image' && el.src) {
+    // Build crop CSS: position image so only the cropped region is visible
+    const cx = el.cropX ?? 0;
+    const cy = el.cropY ?? 0;
+    const cw = el.cropW ?? 100;
+    const ch = el.cropH ?? 100;
+    const hasCrop = cx > 0 || cy > 0 || cw < 100 || ch < 100;
+
     return (
       <div
         style={wrapperStyle}
@@ -287,23 +294,43 @@ const CanvasElementNode: React.FC<{
           onDragStart(e, 'move');
         }}
       >
-        <img
-          src={el.src}
-          alt="Slide element"
-          draggable={false}
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: el.objectFit || 'contain',
-            borderRadius: `${el.borderRadius || 0}px`,
-            opacity: el.opacity ?? 1,
-            pointerEvents: 'none',
-            userSelect: 'none',
-            display: 'block',
-            filter: el.shadow ? 'drop-shadow(0 10px 20px rgba(0,0,0,0.5))' : undefined,
-            ...(el.rotation !== 0 ? { transform: `rotate(${el.rotation}deg)` } : {}),
-          }}
-        />
+        {/* Crop container — overflow clips the scaled image to the visible crop region */}
+        <div style={{
+          width: '100%',
+          height: '100%',
+          overflow: 'hidden',
+          position: 'relative',
+          borderRadius: `${el.borderRadius || 0}px`,
+          opacity: el.opacity ?? 1,
+          filter: el.shadow ? 'drop-shadow(0 10px 20px rgba(0,0,0,0.5))' : undefined,
+        }}>
+          <img
+            src={el.src}
+            alt="Slide element"
+            draggable={false}
+            style={hasCrop ? {
+              // Scale image so crop region fills the container exactly
+              position: 'absolute',
+              width: `${100 / (cw / 100)}%`,
+              height: `${100 / (ch / 100)}%`,
+              left: `${-(cx / cw) * 100}%`,
+              top: `${-(cy / ch) * 100}%`,
+              objectFit: 'fill',
+              pointerEvents: 'none',
+              userSelect: 'none',
+              display: 'block',
+              ...(el.rotation !== 0 ? { transform: `rotate(${el.rotation}deg)` } : {}),
+            } : {
+              width: '100%',
+              height: '100%',
+              objectFit: el.objectFit || 'fill',
+              pointerEvents: 'none',
+              userSelect: 'none',
+              display: 'block',
+              ...(el.rotation !== 0 ? { transform: `rotate(${el.rotation}deg)` } : {}),
+            }}
+          />
+        </div>
         {/* Resize handles when selected */}
         {isSelected && HANDLES.map((h) => (
           <div
@@ -317,7 +344,7 @@ const CanvasElementNode: React.FC<{
               width: '8px',
               height: '8px',
               backgroundColor: '#ffffff',
-              border: '1.5px solid #6366f1',
+              border: '2px solid #6366f1',
               borderRadius: '50%',
               cursor: h.cursor,
               zIndex: 100,
@@ -404,6 +431,17 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const replaceImageInputRef = useRef<HTMLInputElement>(null);
 
+  // ── Crop mode ───────────────────────────────────────────────────────────────
+  const [isCropMode, setIsCropMode] = useState(false);
+  // Crop handles in % (relative to the image element)
+  const [cropDraft, setCropDraft] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const cropDragRef = useRef<{
+    handle: 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'move';
+    startMX: number; startMY: number;
+    startCX: number; startCY: number; startCW: number; startCH: number;
+    elW: number; elH: number; // element size in canvas px
+  } | null>(null);
+
   // ── Drag & Drop Files onto Canvas ──────────────────────────────────────────
   const handleCanvasDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -429,15 +467,16 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
 
     // Calculate drop position %
     const rect = e.currentTarget.getBoundingClientRect();
-    const dropX = clamp(((e.clientX - rect.left) / rect.width) * 100 - 15, 5, 70);
-    const dropY = clamp(((e.clientY - rect.top) / rect.height) * 100 - 15, 5, 70);
+    const dropX = clamp(((e.clientX - rect.left) / rect.width) * 100 - 20, 2, 60);
+    const dropY = clamp(((e.clientY - rect.top) / rect.height) * 100 - 10, 2, 60);
 
     files.forEach((file, index) => {
       const reader = new FileReader();
       reader.onload = (loadEvt) => {
         const src = loadEvt.target?.result as string;
         if (src) {
-          onAddImageElement(src, dropX + index * 4, dropY + index * 4, 35, 45);
+          // Pass drop position; let App compute proportional size from naturalWidth/Height
+          onAddImageElement(src, dropX + index * 3, dropY + index * 3);
         }
       };
       reader.readAsDataURL(file);
@@ -459,7 +498,8 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
             reader.onload = (loadEvt) => {
               const src = loadEvt.target?.result as string;
               if (src) {
-                onAddImageElement(src, 32, 25, 36, 48);
+                // No explicit position → center on canvas; App computes proportional size
+                onAddImageElement(src);
               }
             };
             reader.readAsDataURL(file);
@@ -532,14 +572,51 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
     activeElRef.current = null;
   }, []);
 
+  // ── Crop drag handlers ────────────────────────────────────────────────────
+  const handleCropMouseMove = useCallback((e: MouseEvent) => {
+    const d = cropDragRef.current;
+    if (!d || !cropDraft) return;
+
+    const dxPct = ((e.clientX - d.startMX) / d.elW) * 100;
+    const dyPct = ((e.clientY - d.startMY) / d.elH) * 100;
+    let { startCX: cx, startCY: cy, startCW: cw, startCH: ch } = d;
+
+    if (d.handle === 'move') {
+      cx = clamp(cx + dxPct, 0, 100 - cw);
+      cy = clamp(cy + dyPct, 0, 100 - ch);
+    } else {
+      if (d.handle.includes('e')) cw = clamp(cw + dxPct, 5, 100 - cx);
+      if (d.handle.includes('s')) ch = clamp(ch + dyPct, 5, 100 - cy);
+      if (d.handle.includes('w')) {
+        const newCW = clamp(cw - dxPct, 5, cx + cw);
+        cx = cx + (cw - newCW);
+        cw = newCW;
+      }
+      if (d.handle.includes('n')) {
+        const newCH = clamp(ch - dyPct, 5, cy + ch);
+        cy = cy + (ch - newCH);
+        ch = newCH;
+      }
+    }
+    setCropDraft({ x: cx, y: cy, w: cw, h: ch });
+  }, [cropDraft]);
+
+  const handleCropMouseUp = useCallback(() => {
+    cropDragRef.current = null;
+  }, []);
+
   useEffect(() => {
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('mousemove', handleCropMouseMove);
+    window.addEventListener('mouseup', handleCropMouseUp);
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mousemove', handleCropMouseMove);
+      window.removeEventListener('mouseup', handleCropMouseUp);
     };
-  }, [handleMouseMove, handleMouseUp]);
+  }, [handleMouseMove, handleMouseUp, handleCropMouseMove, handleCropMouseUp]);
 
   // ── Drag starters ──────────────────────────────────────────────────────────
   const startDrag = (e: React.MouseEvent, elId: string, type: 'move', handle?: ResizeHandle) => {
@@ -633,6 +710,12 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   // ── Rulers ────────────────────────────────────────────────────────────────
   const [showRulers, setShowRulers] = useState(true);
   const [rulerUnit, setRulerUnit] = useState<'px' | '%'>('px');
+
+  // Reset crop mode when selection changes
+  useEffect(() => {
+    setIsCropMode(false);
+    setCropDraft(null);
+  }, [selectedId]);
 
   // ── Zoom (scroll-wheel) ───────────────────────────────────────────────────
   const [zoom, setZoom] = useState(1);
@@ -926,6 +1009,79 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                 <Upload size={12} />
                 <span>Cambiar</span>
               </button>
+
+              <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
+
+              {/* Crop button */}
+              <button
+                onClick={() => {
+                  if (isCropMode) {
+                    setIsCropMode(false);
+                    setCropDraft(null);
+                  } else {
+                    // Initialize crop draft from existing crop or full image
+                    const el = selectedEl!;
+                    setCropDraft({
+                      x: el.cropX ?? 0,
+                      y: el.cropY ?? 0,
+                      w: el.cropW ?? 100,
+                      h: el.cropH ?? 100,
+                    });
+                    setIsCropMode(true);
+                  }
+                }}
+                title={isCropMode ? 'Cancelar recorte' : 'Recortar imagen'}
+                style={{
+                  background: isCropMode ? 'rgba(245,158,11,0.25)' : 'none',
+                  border: isCropMode ? '1px solid rgba(245,158,11,0.6)' : 'none',
+                  color: isCropMode ? '#fbbf24' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '4px 6px',
+                  borderRadius: '5px',
+                  fontSize: '11px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                }}
+              >
+                <Crop size={12} />
+                <span>{isCropMode ? 'Cancelar' : 'Recortar'}</span>
+              </button>
+
+              {/* Apply crop button — only visible in crop mode */}
+              {isCropMode && cropDraft && (
+                <button
+                  onClick={() => {
+                    if (selectedId && cropDraft) {
+                      onUpdateElement(selectedId, {
+                        cropX: cropDraft.x,
+                        cropY: cropDraft.y,
+                        cropW: cropDraft.w,
+                        cropH: cropDraft.h,
+                      });
+                    }
+                    setIsCropMode(false);
+                    setCropDraft(null);
+                  }}
+                  title="Aplicar recorte"
+                  style={{
+                    background: 'rgba(34,197,94,0.25)',
+                    border: '1px solid rgba(34,197,94,0.6)',
+                    color: '#4ade80',
+                    cursor: 'pointer',
+                    padding: '4px 8px',
+                    borderRadius: '5px',
+                    fontSize: '11px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    fontWeight: '600',
+                  }}
+                >
+                  <Check size={12} />
+                  <span>Aplicar</span>
+                </button>
+              )}
             </>
           )}
 
@@ -1158,6 +1314,116 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
             />
           ))}
         </div>
+
+        {/* ── Crop overlay ── */}
+        {isCropMode && cropDraft && selectedEl && selectedEl.type === 'image' && (() => {
+          const elLeft = selectedEl.x / 100 * canvasW;
+          const elTop  = selectedEl.y / 100 * canvasH;
+          const elW    = selectedEl.w / 100 * canvasW;
+          const elH    = selectedEl.h / 100 * canvasH;
+
+          const cropL = cropDraft.x / 100 * elW;
+          const cropT = cropDraft.y / 100 * elH;
+          const cropR = (1 - (cropDraft.x + cropDraft.w) / 100) * elW;
+          const cropB = (1 - (cropDraft.y + cropDraft.h) / 100) * elH;
+
+          const CROP_HANDLES: { id: 'nw'|'n'|'ne'|'e'|'se'|'s'|'sw'|'w'; top: string; left: string; cursor: string }[] = [
+            { id: 'nw', top: '0',   left: '0',   cursor: 'nw-resize' },
+            { id: 'n',  top: '0',   left: '50%', cursor: 'n-resize'  },
+            { id: 'ne', top: '0',   left: '100%',cursor: 'ne-resize' },
+            { id: 'e',  top: '50%', left: '100%',cursor: 'e-resize'  },
+            { id: 'se', top: '100%',left: '100%',cursor: 'se-resize' },
+            { id: 's',  top: '100%',left: '50%', cursor: 's-resize'  },
+            { id: 'sw', top: '100%',left: '0',   cursor: 'sw-resize' },
+            { id: 'w',  top: '50%', left: '0',   cursor: 'w-resize'  },
+          ];
+
+          return (
+            <div
+              style={{
+                position: 'absolute',
+                left: elLeft,
+                top: elTop,
+                width: elW,
+                height: elH,
+                zIndex: 500,
+                pointerEvents: 'none',
+              }}
+            >
+              {/* Dark mask: top */}
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: cropT, background: 'rgba(0,0,0,0.55)', pointerEvents: 'none' }} />
+              {/* Dark mask: bottom */}
+              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: cropB, background: 'rgba(0,0,0,0.55)', pointerEvents: 'none' }} />
+              {/* Dark mask: left */}
+              <div style={{ position: 'absolute', top: cropT, bottom: cropB, left: 0, width: cropL, background: 'rgba(0,0,0,0.55)', pointerEvents: 'none' }} />
+              {/* Dark mask: right */}
+              <div style={{ position: 'absolute', top: cropT, bottom: cropB, right: 0, width: cropR, background: 'rgba(0,0,0,0.55)', pointerEvents: 'none' }} />
+
+              {/* Crop border rect — interactive: drag to move crop box */}
+              <div
+                style={{
+                  position: 'absolute',
+                  left: cropL,
+                  top: cropT,
+                  width: elW - cropL - cropR,
+                  height: elH - cropT - cropB,
+                  border: '2px solid #fbbf24',
+                  boxSizing: 'border-box',
+                  cursor: 'move',
+                  pointerEvents: 'all',
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  cropDragRef.current = {
+                    handle: 'move',
+                    startMX: e.clientX, startMY: e.clientY,
+                    startCX: cropDraft.x, startCY: cropDraft.y,
+                    startCW: cropDraft.w, startCH: cropDraft.h,
+                    elW, elH,
+                  };
+                }}
+              >
+                {/* Rule-of-thirds grid lines */}
+                {[1/3, 2/3].map((f, i) => (
+                  <React.Fragment key={i}>
+                    <div style={{ position: 'absolute', left: `${f * 100}%`, top: 0, bottom: 0, width: '1px', background: 'rgba(251,191,36,0.35)', pointerEvents: 'none' }} />
+                    <div style={{ position: 'absolute', top: `${f * 100}%`, left: 0, right: 0, height: '1px', background: 'rgba(251,191,36,0.35)', pointerEvents: 'none' }} />
+                  </React.Fragment>
+                ))}
+
+                {/* Crop resize handles */}
+                {CROP_HANDLES.map((h) => (
+                  <div
+                    key={h.id}
+                    style={{
+                      position: 'absolute',
+                      top: h.top, left: h.left,
+                      transform: 'translate(-50%, -50%)',
+                      width: '10px', height: '10px',
+                      background: '#fbbf24',
+                      border: '2px solid #fff',
+                      borderRadius: '2px',
+                      cursor: h.cursor,
+                      zIndex: 501,
+                      pointerEvents: 'all',
+                    }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      cropDragRef.current = {
+                        handle: h.id,
+                        startMX: e.clientX, startMY: e.clientY,
+                        startCX: cropDraft.x, startCY: cropDraft.y,
+                        startCW: cropDraft.w, startCH: cropDraft.h,
+                        elW, elH,
+                      };
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
           </div>
           </div>{/* /zoom wrapper */}
       </div>

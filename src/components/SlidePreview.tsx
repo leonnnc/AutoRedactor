@@ -211,6 +211,11 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
           {/* Elements */}
           {slide.elements.map((el) => {
             if (el.type === 'image' && el.src) {
+              const cx = el.cropX ?? 0;
+              const cy = el.cropY ?? 0;
+              const cw = el.cropW ?? 100;
+              const ch = el.cropH ?? 100;
+              const hasCrop = cx > 0 || cy > 0 || cw < 100 || ch < 100;
               return (
                 <div
                   key={el.id}
@@ -220,23 +225,28 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
                     top: `${el.y}%`,
                     width: `${el.w}%`,
                     height: `${el.h}%`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
                     overflow: 'hidden',
                     boxSizing: 'border-box',
-                  }}
+                    borderRadius: `${el.borderRadius || 0}px`,
+                    opacity: el.opacity ?? 1,
+                    filter: el.shadow ? 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))' : undefined,
+                  } as React.CSSProperties}
                 >
                   <img
                     src={el.src}
                     alt="Slide element"
-                    style={{
+                    style={hasCrop ? {
+                      position: 'absolute',
+                      width: `${100 / (cw / 100)}%`,
+                      height: `${100 / (ch / 100)}%`,
+                      left: `${-(cx / cw) * 100}%`,
+                      top: `${-(cy / ch) * 100}%`,
+                      objectFit: 'fill',
+                      ...(el.rotation !== 0 ? { transform: `rotate(${el.rotation}deg)` } : {}),
+                    } : {
                       width: '100%',
                       height: '100%',
-                      objectFit: el.objectFit || 'contain',
-                      borderRadius: `${el.borderRadius || 0}px`,
-                      opacity: el.opacity ?? 1,
-                      filter: el.shadow ? 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))' : undefined,
+                      objectFit: el.objectFit || 'fill',
                       ...(el.rotation !== 0 ? { transform: `rotate(${el.rotation}deg)` } : {}),
                     }}
                   />

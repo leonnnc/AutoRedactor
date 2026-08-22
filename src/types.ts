@@ -17,6 +17,11 @@ export interface CanvasElement {
   objectFit?: 'contain' | 'cover' | 'fill';
   borderRadius?: number;
   shadow?: boolean;
+  // Crop (% relative to original image, 0-100)
+  cropX?: number;   // left crop (% of image width to skip)
+  cropY?: number;   // top crop (% of image height to skip)
+  cropW?: number;   // visible width (% of image width)
+  cropH?: number;   // visible height (% of image height)
   // Text content (when type === 'text')
   text?: string;
   isReference?: boolean;  // renders as a reference label (small, gold, uppercase)

@@ -187,24 +187,41 @@ export default function App() {
     setSelectedElId(el.id);
   };
 
-  const handleAddImageElement = (src: string, x = 32, y = 25, w = 36, h = 50) => {
+  const handleAddImageElement = (src: string, x?: number, y?: number, w?: number, h?: number) => {
     if (!activeSlideId) return;
-    const el: CanvasElement = {
-      id: crypto.randomUUID(),
-      type: 'image',
-      src,
-      x,
-      y,
-      w,
-      h,
-      objectFit: 'contain',
-      borderRadius: 0,
-      shadow: false,
-      opacity: 1,
-      rotation: 0,
+    // Compute tight bounding box from actual image proportions
+    const img = new window.Image();
+    img.onload = () => {
+      const canvasAspect = 16 / 9; // default; good enough for sizing
+      const imgAspect = img.naturalWidth / img.naturalHeight;
+      // Base width ~40% of canvas; compute height from real aspect ratio
+      const baseW = w ?? 40;
+      const baseH = h ?? Math.round(baseW / imgAspect / canvasAspect * 100) / 100;
+      // Center on canvas if no explicit position
+      const posX = x ?? Math.max(5, 50 - baseW / 2);
+      const posY = y ?? Math.max(5, 50 - baseH / 2);
+      const el: CanvasElement = {
+        id: crypto.randomUUID(),
+        type: 'image',
+        src,
+        x: posX,
+        y: posY,
+        w: baseW,
+        h: baseH,
+        objectFit: 'fill',
+        borderRadius: 0,
+        shadow: false,
+        opacity: 1,
+        rotation: 0,
+        cropX: 0,
+        cropY: 0,
+        cropW: 100,
+        cropH: 100,
+      };
+      setSlides((p) => p.map((s) => s.id === activeSlideId ? { ...s, elements: [...s.elements, el] } : s));
+      setSelectedElId(el.id);
     };
-    setSlides((p) => p.map((s) => s.id === activeSlideId ? { ...s, elements: [...s.elements, el] } : s));
-    setSelectedElId(el.id);
+    img.src = src;
   };
 
   const handleUpdateElement = (elId: string, fields: Partial<CanvasElement>) => {
