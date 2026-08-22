@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { BibleData, BibleVersion } from '../types';
-import { BookOpen, FileText, Search, Sparkles, Plus, CheckCircle, AlertCircle } from 'lucide-react';
+import { BookOpen, FileText, Search, Sparkles, Plus, CheckCircle, AlertCircle, Download } from 'lucide-react';
 import { parseBibleRef, resolveBookName, norm } from '../utils/bibleAbbreviations';
 
 interface SermonInputPanelProps {
@@ -36,7 +36,36 @@ export const SermonInputPanel: React.FC<SermonInputPanelProps> = ({
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<VerseResult[]>([]);
   const [searchError, setSearchError] = useState('');
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true);
+    }
+
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (installPrompt) {
+      installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      if (choice.outcome === 'accepted') {
+        setIsInstalled(true);
+      }
+      setInstallPrompt(null);
+    } else {
+      alert('Para instalar AutoRedactor en tu computadora:\n\n1. En Google Chrome o Edge, haz clic en el ícono de instalación (⊕ o monitor) en la barra de direcciones.\n2. O ve al menú (tres puntos ⋮) > "Guardar y compartir" > "Instalar AutoRedactor".');
+    }
+  };
 
   // Reset when bible version changes
   useEffect(() => {
@@ -109,14 +138,36 @@ export const SermonInputPanel: React.FC<SermonInputPanelProps> = ({
   return (
     <div className="panel">
       {/* App Header */}
-      <div className="panel-header" style={{ justifyContent: 'space-between' }}>
+      <div className="panel-header" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <h1 className="panel-title" style={{ fontSize: '18px', margin: 0 }}>
           <Sparkles size={20} style={{ color: 'var(--accent-secondary)' }} />
           AutoRedactor
         </h1>
-        <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', padding: '3px 8px', borderRadius: '12px', color: 'var(--text-muted)' }}>
-          v3.4.5
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {!isInstalled && (
+            <button
+              onClick={handleInstallClick}
+              title="Instalar AutoRedactor como programa de escritorio"
+              className="btn btn-secondary"
+              style={{
+                fontSize: '11px',
+                padding: '3px 8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                background: 'rgba(99, 102, 241, 0.15)',
+                borderColor: 'rgba(99, 102, 241, 0.4)',
+                color: '#a5b4fc',
+              }}
+            >
+              <Download size={12} />
+              <span>Instalar</span>
+            </button>
+          )}
+          <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', padding: '3px 8px', borderRadius: '12px', color: 'var(--text-muted)' }}>
+            v3.4.5
+          </span>
+        </div>
       </div>
 
       <div className="panel-content" style={{ paddingBottom: '10px' }}>
