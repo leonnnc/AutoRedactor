@@ -210,6 +210,40 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
 
           {/* Elements */}
           {slide.elements.map((el) => {
+            if (el.type === 'image' && el.src) {
+              return (
+                <div
+                  key={el.id}
+                  style={{
+                    position: 'absolute',
+                    left: `${el.x}%`,
+                    top: `${el.y}%`,
+                    width: `${el.w}%`,
+                    height: `${el.h}%`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  <img
+                    src={el.src}
+                    alt="Slide element"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: el.objectFit || 'contain',
+                      borderRadius: `${el.borderRadius || 0}px`,
+                      opacity: el.opacity ?? 1,
+                      filter: el.shadow ? 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))' : undefined,
+                      ...(el.rotation !== 0 ? { transform: `rotate(${el.rotation}deg)` } : {}),
+                    }}
+                  />
+                </div>
+              );
+            }
+
             const shadowStr = el.textShadow
               ? `0 ${bg.textShadowBlur}px ${bg.textShadowBlur * 2}px ${bg.textShadowColor}`
               : undefined;
@@ -231,21 +265,21 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
               >
                 <div style={{
                   width: '100%',
-                  color: el.color,
-                  fontSize: `${el.fontSize}px`,
-                  fontFamily: el.fontFamily,
+                  color: el.color || '#ffffff',
+                  fontSize: `${el.fontSize ?? 48}px`,
+                  fontFamily: el.fontFamily || "'Playfair Display', serif",
                   fontWeight: el.bold ? '700' : '400',
                   fontStyle: el.italic ? 'italic' : 'normal',
                   textTransform: el.uppercase ? 'uppercase' : 'none',
-                  textAlign: el.textAlign,
-                  lineHeight: el.lineHeight,
-                  opacity: el.opacity,
+                  textAlign: el.textAlign || 'center',
+                  lineHeight: el.lineHeight || 1.3,
+                  opacity: el.opacity ?? 1,
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-word',
                   ...(el.rotation !== 0 ? { transform: `rotate(${el.rotation}deg)` } : {}),
                   ...(shadowStr ? { textShadow: shadowStr } : {}),
                   ...(el.isReference ? {
-                    fontSize: `${el.fontSize}px`,
+                    fontSize: `${el.fontSize ?? 18}px`,
                     letterSpacing: '1px',
                     fontWeight: '600',
                   } : {}),

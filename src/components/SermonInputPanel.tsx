@@ -165,7 +165,7 @@ export const SermonInputPanel: React.FC<SermonInputPanelProps> = ({
             </button>
           )}
           <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', padding: '3px 8px', borderRadius: '12px', color: 'var(--text-muted)' }}>
-            v3.4.5
+            v3.5.0
           </span>
         </div>
       </div>

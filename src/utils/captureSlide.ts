@@ -189,8 +189,6 @@ export const captureFullResolutionSlide = async (
 
   // ── Elements ────────────────────────────────────────────────────────────────
   for (const el of slide.elements) {
-    if (!el.text.trim()) continue;
-
     const wrapper = document.createElement('div');
     Object.assign(wrapper.style, {
       position: 'absolute',
@@ -201,9 +199,30 @@ export const captureFullResolutionSlide = async (
       zIndex: '10',
       display: 'flex',
       alignItems: 'center',
+      justifyContent: 'center',
       overflow: 'hidden',
       boxSizing: 'border-box',
     } as Partial<CSSStyleDeclaration>);
+
+    if (el.type === 'image' && el.src) {
+      const img = document.createElement('img');
+      img.src = el.src;
+      img.crossOrigin = 'anonymous';
+      Object.assign(img.style, {
+        width: '100%',
+        height: '100%',
+        objectFit: el.objectFit || 'contain',
+        borderRadius: `${el.borderRadius || 0}px`,
+        opacity: String(el.opacity ?? 1),
+        filter: el.shadow ? 'drop-shadow(0 10px 20px rgba(0,0,0,0.5))' : '',
+        ...(el.rotation !== 0 ? { transform: `rotate(${el.rotation}deg)` } : {}),
+      } as Partial<CSSStyleDeclaration>);
+      wrapper.appendChild(img);
+      root.appendChild(wrapper);
+      continue;
+    }
+
+    if (!el.text || !el.text.trim()) continue;
 
     const shadowStr = el.textShadow
       ? `0 ${bg.textShadowBlur}px ${bg.textShadowBlur * 2}px ${bg.textShadowColor}`
@@ -211,18 +230,18 @@ export const captureFullResolutionSlide = async (
 
     const inner = document.createElement('div');
     // fontSize stored in preview-px — scale up to full-res by dividing by preview scale
-    const fullResFontSize = el.fontSize / dims.scale;
+    const fullResFontSize = (el.fontSize ?? 48) / dims.scale;
     Object.assign(inner.style, {
       width: '100%',
-      color: el.color,
+      color: el.color || '#ffffff',
       fontSize: px(el.isReference ? fullResFontSize * 0.55 : fullResFontSize),
-      fontFamily: el.fontFamily,
+      fontFamily: el.fontFamily || "'Playfair Display', serif",
       fontWeight: el.bold ? '700' : '400',
       fontStyle: el.italic ? 'italic' : 'normal',
       textTransform: el.uppercase ? 'uppercase' : 'none',
-      textAlign: el.textAlign,
-      lineHeight: String(el.lineHeight),
-      opacity: String(el.opacity),
+      textAlign: el.textAlign || 'center',
+      lineHeight: String(el.lineHeight || 1.3),
+      opacity: String(el.opacity ?? 1),
       whiteSpace: 'pre-wrap',
       wordBreak: 'break-word',
       ...(el.isReference ? { letterSpacing: '1px' } : {}),

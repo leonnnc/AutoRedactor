@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "AutoRedactor",
-  "version": "3.4.5",
+  "version": "3.5.0",
   "identifier": "com.autoredactor.app",
   "build": {
     "frontendDist": "../dist",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "AutoRedactor v3.4.5",
+        "title": "AutoRedactor v3.5.0",
         "width": 1400,
         "height": 820,
         "minWidth": 1100,

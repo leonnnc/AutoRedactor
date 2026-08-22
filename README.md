@@ -1,13 +1,13 @@
-<div align="center">
+﻿<div align="center">
 
 <img src="public/icon-512.jpg" width="120" alt="AutoRedactor logo" />
 
 # ✨ AutoRedactor
 
-**Editor profesional de diapositivas para prédicas e iglesias**
+**Editor profesional de diapositivas para prédicas e iglesias**  
 Crea, personaliza y exporta presentaciones bíblicas — en segundos.
 
-[![Version](https://img.shields.io/badge/versión-3.4.5-6366f1?style=for-the-badge)](https://github.com/leonnnc/AutoRedactor/releases)
+[![Version](https://img.shields.io/badge/versión-3.5.0-6366f1?style=for-the-badge)](https://github.com/leonnnc/AutoRedactor/releases)
 [![Live Demo](https://img.shields.io/badge/🌐_Demo_en_vivo-GitHub_Pages-0ea5e9?style=for-the-badge)](https://leonnnc.github.io/AutoRedactor/)
 [![React](https://img.shields.io/badge/React-19-61dafb?style=for-the-badge&logo=react)](https://react.dev)
 [![Tauri](https://img.shields.io/badge/Tauri-2-ffc131?style=for-the-badge&logo=tauri)](https://tauri.app)
@@ -43,10 +43,11 @@ Funciona directamente en el navegador. También puedes instalarlo como app de es
 - **Añadir todos de una vez**: Agrega múltiples versículos a todas tus diapositivas en un solo botón.
 
 ### Editor Visual (Canvas)
-- **Lienzo interactivo**: Arrastra, redimensiona y edita elementos directamente sobre la diapositiva.
-- **Barra de herramientas flotante**: Al seleccionar un texto aparece una barra contextual para cambiar fuente, tamaño, color, negrita, cursiva, mayúsculas y alineación.
+- **Imágenes Arrastrar y Soltar (Drag & Drop)**: Arrastra fotos, logos e ilustraciones desde tu explorador de archivos directamente a la diapositiva, o pégalas con `Ctrl + V`.
+- **Lienzo interactivo**: Arrastra, redimensiona y personaliza elementos de texto e imagen sobre la diapositiva.
+- **Barra de herramientas flotante**: Controles rápidos para texto (fuente, tamaño, color, formato, alineación) e imágenes (ajuste contain/cover, bordes redondeados, sombra flotante, opacidad y reemplazo).
 - **Zoom con la rueda del mouse**: Acerca y aleja el lienzo (25% – 300%) para editar con precisión.
-- **Reglas de precisión (estilo Office)**: Reglas horizontal y vertical pegadas a los bordes del espacio de trabajo, con el 0 en el centro. Se actualizan con el zoom.
+- **Reglas de precisión (estilo Office)**: Reglas horizontal y vertical pegadas a los bordes del espacio de trabajo, con el 0 en el centro.
 - **Indicador de resolución**: Muestra las dimensiones exactas del lienzo en píxeles.
 
 ### Fondos de Diapositiva
@@ -66,7 +67,7 @@ Funciona directamente en el navegador. También puedes instalarlo como app de es
 - **Vista previa en tiempo real**: Miniaturas actualizadas mientras editas.
 
 ### Instalación como App
-- **PWA**: Instálala desde Chrome o Edge como app de escritorio. Funciona sin internet.
+- **PWA**: Instálala desde Chrome o Edge con el botón **📥 Instalar**. Funciona sin internet.
 - **App nativa para Windows (.exe / .msi)**: Instalador real generado con Tauri (~10 MB).
 
 ---
@@ -81,15 +82,15 @@ Funciona directamente en el navegador. También puedes instalarlo como app de es
 ### Opción 2 — Instalar como PWA
 
 1. Abre la demo en **Chrome o Edge**.
-2. Haz clic en el ícono de instalación en la barra de direcciones.
+2. Haz clic en el botón **📥 Instalar** en la app o en la barra de direcciones.
 3. La app quedará en tu menú inicio. **Funciona sin internet.**
 
 ### Opción 3 — Instalador nativo para Windows
 
 Descarga desde [Releases](https://github.com/leonnnc/AutoRedactor/releases):
 
-- `AutoRedactor_3.4.5_x64_en-US.msi` — Instalador MSI (recomendado)
-- `AutoRedactor_3.4.5_x64-setup.exe` — Instalador con asistente
+- `AutoRedactor_3.5.0_x64_en-US.msi` — Instalador MSI (recomendado)
+- `AutoRedactor_3.5.0_x64-setup.exe` — Instalador con asistente
 
 ---
 
@@ -139,7 +140,7 @@ npm run tauri:build
 | PptxGenJS | Exportación a PowerPoint |
 | JSZip | Exportación en ZIP de imágenes |
 | lucide-react | Íconos |
-| GitHub Actions | Deploy automático a GitHub Pages |
+| GitHub Actions | Deploy automático a GitHub Pages y FTP |
 
 ---
 
@@ -149,13 +150,13 @@ npm run tauri:build
 AutoRedactor/
 ├── src/
 │   ├── components/
-│   │   ├── CanvasEditor.tsx      # Editor visual con zoom y reglas
+│   │   ├── CanvasEditor.tsx      # Editor visual con zoom, reglas y drag & drop
 │   │   ├── EditorPanel.tsx       # Panel de fondos, efectos y exportación
 │   │   ├── SermonInputPanel.tsx  # Entrada de texto y búsqueda bíblica
 │   │   ├── SlidePreview.tsx      # Miniaturas de diapositivas
 │   │   └── Ruler.tsx             # Reglas horizontal y vertical
 │   ├── utils/
-│   │   ├── captureSlide.ts       # Lógica de exportación
+│   │   ├── captureSlide.ts       # Lógica de exportación con soporte de imágenes
 │   │   └── parseSermon.ts        # Parser de texto a diapositivas
 │   ├── types.ts                  # Tipos TypeScript compartidos
 │   └── index.css                 # Estilos globales (dark theme)
@@ -165,7 +166,8 @@ AutoRedactor/
 ├── public/
 │   └── bibles/                   # Biblia RVR 1960 en JSON
 └── .github/workflows/
-    └── gh-pages.yml              # CI/CD automático a GitHub Pages
+    ├── gh-pages.yml              # CI/CD automático a GitHub Pages
+    └── deploy-ftp.yml            # CI/CD automático a Hosting FTP
 ```
 
 ---
@@ -173,6 +175,7 @@ AutoRedactor/
 ## Hoja de ruta
 
 - [x] Editor de canvas con drag and drop
+- [x] Imágenes flotantes arrastrar y soltar (Drag & Drop y Ctrl + V)
 - [x] Fondos duales con 5 estilos de división
 - [x] Búsqueda bíblica integrada (RVR 1960)
 - [x] Exportación PDF, PPTX y ZIP

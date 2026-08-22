@@ -2,7 +2,7 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
 import type { Slide, CanvasElement, SlideBackground, ViewportMode, CustomCanvasSize } from '../types';
 import { getViewportDimensions } from '../utils/captureSlide';
 import { calcTextBoxH } from '../utils/parseSermon';
-import { Bold, Italic, Type, AlignLeft, AlignCenter, AlignRight, Trash2, Plus, Minus, GripVertical, GripHorizontal, Ruler } from 'lucide-react';
+import { Bold, Italic, Type, AlignLeft, AlignCenter, AlignRight, Trash2, Plus, Minus, GripVertical, GripHorizontal, Ruler, Image, Upload, Layers } from 'lucide-react';
 import { HorizontalRuler, VerticalRuler } from './Ruler';
 
 const FONTS = [
@@ -42,6 +42,7 @@ interface CanvasEditorProps {
   onUpdateElement: (id: string, fields: Partial<CanvasElement>) => void;
   onDeleteElement: (id: string) => void;
   onUpdateBackground?: (fields: Partial<SlideBackground>) => void;
+  onAddImageElement?: (src: string, x?: number, y?: number, w?: number, h?: number) => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -200,9 +201,9 @@ const CanvasElementNode: React.FC<{
 
   const PAD_PX = 6;
 
-  // Auto-fit ONCE after first paint to get real browser dimensions
+  // Auto-fit ONCE after first paint to get real browser dimensions (only for text elements)
   useEffect(() => {
-    if (fittedRef.current || editing || !textDivRef.current) return;
+    if (el.type !== 'text' || fittedRef.current || editing || !textDivRef.current) return;
     const rect = textDivRef.current.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
     fittedRef.current = true;
@@ -213,28 +214,30 @@ const CanvasElementNode: React.FC<{
     }
   });
 
-  // Re-fit when fontSize changes (reset the flag so next render re-measures)
+  // Re-fit when fontSize changes
   const prevFontSize = useRef(el.fontSize);
   if (prevFontSize.current !== el.fontSize) {
     prevFontSize.current = el.fontSize;
     fittedRef.current = false;
-  }  const shadowStr = el.textShadow
+  }
+
+  const shadowStr = el.textShadow
     ? `0 ${shadowBlur}px ${shadowBlur * 2}px ${shadowColor}`
     : undefined;
 
   const textStyle: React.CSSProperties = {
-    color: el.color,
-    fontSize: `${el.fontSize}px`,
-    fontFamily: el.fontFamily,
+    color: el.color || '#ffffff',
+    fontSize: `${el.fontSize ?? 48}px`,
+    fontFamily: el.fontFamily || "'Playfair Display', serif",
     fontWeight: el.bold ? '700' : '400',
     fontStyle: el.italic ? 'italic' : 'normal',
     textTransform: el.uppercase ? 'uppercase' : 'none',
-    textAlign: el.textAlign,
-    lineHeight: el.lineHeight,
+    textAlign: el.textAlign || 'center',
+    lineHeight: el.lineHeight || 1.3,
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
     width: '100%',
-    opacity: el.opacity,
+    opacity: el.opacity ?? 1,
     ...(el.rotation !== 0 ? { transform: `rotate(${el.rotation}deg)` } : {}),
     ...(shadowStr ? { textShadow: shadowStr } : {}),
     ...(el.isReference ? { letterSpacing: '1px', fontWeight: '600' } : {}),
@@ -242,11 +245,13 @@ const CanvasElementNode: React.FC<{
 
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setEditing(true);
-    setTimeout(() => {
-      textareaRef.current?.focus();
-      textareaRef.current?.select();
-    }, 20);
+    if (el.type === 'text') {
+      setEditing(true);
+      setTimeout(() => {
+        textareaRef.current?.focus();
+        textareaRef.current?.select();
+      }, 20);
+    }
   };
 
   const handleBlur = () => {
@@ -261,13 +266,68 @@ const CanvasElementNode: React.FC<{
     width: `${el.w}%`,
     height: `${el.h}%`,
     boxSizing: 'border-box',
-    padding: `${PAD_PX}px`,
+    padding: el.type === 'text' ? `${PAD_PX}px` : '0px',
     cursor: isSelected ? 'move' : 'pointer',
     userSelect: 'none',
-    outline: isSelected ? `1px solid rgba(99,102,241,0.7)` : 'none',
+    outline: isSelected ? `2px solid rgba(99,102,241,0.9)` : 'none',
     outlineOffset: '2px',
-    overflow: 'hidden',
+    overflow: 'visible',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   };
+
+  if (el.type === 'image' && el.src) {
+    return (
+      <div
+        style={wrapperStyle}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          onSelect();
+          onDragStart(e, 'move');
+        }}
+      >
+        <img
+          src={el.src}
+          alt="Slide element"
+          draggable={false}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: el.objectFit || 'contain',
+            borderRadius: `${el.borderRadius || 0}px`,
+            opacity: el.opacity ?? 1,
+            pointerEvents: 'none',
+            userSelect: 'none',
+            display: 'block',
+            filter: el.shadow ? 'drop-shadow(0 10px 20px rgba(0,0,0,0.5))' : undefined,
+            ...(el.rotation !== 0 ? { transform: `rotate(${el.rotation}deg)` } : {}),
+          }}
+        />
+        {/* Resize handles when selected */}
+        {isSelected && HANDLES.map((h) => (
+          <div
+            key={h.id}
+            onMouseDown={(e) => { e.stopPropagation(); onResizeStart(e, h.id); }}
+            style={{
+              position: 'absolute',
+              top: h.top,
+              left: h.left,
+              transform: h.transform,
+              width: '8px',
+              height: '8px',
+              backgroundColor: '#ffffff',
+              border: '1.5px solid #6366f1',
+              borderRadius: '50%',
+              cursor: h.cursor,
+              zIndex: 100,
+              boxShadow: '0 2px 4px rgba(0,0,0,0.4)',
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -333,7 +393,7 @@ const CanvasElementNode: React.FC<{
 
 export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   slide, selectedId, viewportMode, customCanvas,
-  onSelectElement, onUpdateElement, onDeleteElement, onUpdateBackground,
+  onSelectElement, onUpdateElement, onDeleteElement, onUpdateBackground, onAddImageElement,
 }) => {
   const dims = getPreviewDimensions(viewportMode, customCanvas);
   const canvasW = dims.width * dims.scale;
@@ -341,6 +401,76 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
 
   const dragRef = useRef<DragState | null>(null);
   const activeElRef = useRef<string | null>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const replaceImageInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Drag & Drop Files onto Canvas ──────────────────────────────────────────
+  const handleCanvasDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDraggingOver(true);
+    }
+  }, []);
+
+  const handleCanvasDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+  }, []);
+
+  const handleCanvasDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    if (files.length === 0 || !onAddImageElement) return;
+
+    // Calculate drop position %
+    const rect = e.currentTarget.getBoundingClientRect();
+    const dropX = clamp(((e.clientX - rect.left) / rect.width) * 100 - 15, 5, 70);
+    const dropY = clamp(((e.clientY - rect.top) / rect.height) * 100 - 15, 5, 70);
+
+    files.forEach((file, index) => {
+      const reader = new FileReader();
+      reader.onload = (loadEvt) => {
+        const src = loadEvt.target?.result as string;
+        if (src) {
+          onAddImageElement(src, dropX + index * 4, dropY + index * 4, 35, 45);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  }, [onAddImageElement]);
+
+  // ── Clipboard Paste (Ctrl + V) ──────────────────────────────────────────────
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (!onAddImageElement) return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          const file = items[i].getAsFile();
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (loadEvt) => {
+              const src = loadEvt.target?.result as string;
+              if (src) {
+                onAddImageElement(src, 32, 25, 36, 48);
+              }
+            };
+            reader.readAsDataURL(file);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [onAddImageElement]);
 
   // ── Mouse move / up handlers (window level) ────────────────────────────────
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -376,23 +506,25 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       hh = newH;
     }
 
-    // Scale fontSize proportionally using preview canvas dimensions
-    // fontSize is now stored in preview-px, so compare in preview pixel space
-    const startWpx = drag.startW * drag.canvasW / 100;
-    const newWpx   = w           * drag.canvasW / 100;
-    const startHpx = drag.startH * drag.canvasH / 100;
-    const newHpx   = hh          * drag.canvasH / 100;
+    // Scale fontSize proportionally using preview canvas dimensions (only if it has font)
+    if (drag.startFontSize) {
+      const startWpx = drag.startW * drag.canvasW / 100;
+      const newWpx   = w           * drag.canvasW / 100;
+      const startHpx = drag.startH * drag.canvasH / 100;
+      const newHpx   = hh          * drag.canvasH / 100;
 
-    const scaleW = startWpx > 0 ? newWpx / startWpx : 1;
-    const scaleH = startHpx > 0 ? newHpx / startHpx : 1;
-    const isHorizontalOnly = (h === 'e' || h === 'w');
-    const isVerticalOnly   = (h === 'n' || h === 's');
-    const fontScale = isHorizontalOnly ? scaleW
-                    : isVerticalOnly   ? scaleH
-                    : (scaleW + scaleH) / 2;
-    const newFontSize = Math.round(clamp(drag.startFontSize * fontScale, 4, 500));
-
-    onUpdateElement(elId, { x, y, w, h: hh, fontSize: newFontSize });
+      const scaleW = startWpx > 0 ? newWpx / startWpx : 1;
+      const scaleH = startHpx > 0 ? newHpx / startHpx : 1;
+      const isHorizontalOnly = (h === 'e' || h === 'w');
+      const isVerticalOnly   = (h === 'n' || h === 's');
+      const fontScale = isHorizontalOnly ? scaleW
+                      : isVerticalOnly   ? scaleH
+                      : (scaleW + scaleH) / 2;
+      const newFontSize = Math.round(clamp(drag.startFontSize * fontScale, 4, 500));
+      onUpdateElement(elId, { x, y, w, h: hh, fontSize: newFontSize });
+    } else {
+      onUpdateElement(elId, { x, y, w, h: hh });
+    }
   }, [onUpdateElement]);
 
   const handleMouseUp = useCallback(() => {
@@ -419,7 +551,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       type, handle,
       startMouseX: e.clientX, startMouseY: e.clientY,
       startX: el.x, startY: el.y, startW: el.w, startH: el.h,
-      startFontSize: el.fontSize,
+      startFontSize: el.fontSize ?? 48,
       canvasW, canvasH,
       fullW: dims.width, fullH: dims.height,
     };
@@ -434,7 +566,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       type: 'resize', handle,
       startMouseX: e.clientX, startMouseY: e.clientY,
       startX: el.x, startY: el.y, startW: el.w, startH: el.h,
-      startFontSize: el.fontSize,
+      startFontSize: el.fontSize ?? 48,
       canvasW, canvasH,
       fullW: dims.width, fullH: dims.height,
     };
@@ -446,12 +578,12 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
 
   const upEl = (fields: Partial<CanvasElement>) => {
     if (!selectedId || !selectedEl) return;
-    // When fontSize changes, recalculate box height to fit text snugly
+    // When fontSize changes on text elements, recalculate box height to fit text snugly
     let extra: Partial<CanvasElement> = {};
-    if (fields.fontSize !== undefined) {
+    if (fields.fontSize !== undefined && selectedEl.text && selectedEl.type === 'text') {
       const newFs = fields.fontSize;
       const lines = Math.max(1, Math.ceil(selectedEl.text.length / Math.max(1, Math.floor(selectedEl.w * 9.6 / newFs))));
-      extra.h = calcTextBoxH(newFs, selectedEl.lineHeight, lines, canvasH);
+      extra.h = calcTextBoxH(newFs, selectedEl.lineHeight || 1.3, lines, canvasH);
     }
     onUpdateElement(selectedId, { ...fields, ...extra });
   };
@@ -524,6 +656,26 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   return (
     <div className="canvas-area" ref={canvasAreaRef}>
 
+      {/* Hidden input for replacing image */}
+      <input
+        type="file"
+        ref={replaceImageInputRef}
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file && selectedId) {
+            const reader = new FileReader();
+            reader.onload = (loadEvt) => {
+              const src = loadEvt.target?.result as string;
+              if (src) upEl({ src });
+            };
+            reader.readAsDataURL(file);
+          }
+          e.target.value = '';
+        }}
+      />
+
       {/* ── Top-right control bar: Resolution + Zoom + Ruler toggle ── */}
       <div style={{
         position: 'absolute', top: 30, right: 14, zIndex: 150,
@@ -585,69 +737,203 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
           }}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          {/* Font */}
-          <select
-            value={selectedEl.fontFamily}
-            onChange={(e) => upEl({ fontFamily: e.target.value })}
-            style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', fontSize: '12px', cursor: 'pointer', outline: 'none', maxWidth: '100px' }}
-          >
-            {FONTS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
-          </select>
+          {/* Floating toolbar for TEXT elements */}
+          {selectedEl.type === 'text' && (
+            <>
+              {/* Font */}
+              <select
+                value={selectedEl.fontFamily || "'Playfair Display', serif"}
+                onChange={(e) => upEl({ fontFamily: e.target.value })}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', fontSize: '12px', cursor: 'pointer', outline: 'none', maxWidth: '100px' }}
+              >
+                {FONTS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+              </select>
 
-          <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
+              <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
 
-          {/* Font size */}
-          <button onClick={() => upEl({ fontSize: Math.max(4, selectedEl.fontSize - 1) })}
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}>
-            <Minus size={12} />
-          </button>
-          <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-main)', minWidth: '28px', textAlign: 'center' }}>
-            {selectedEl.fontSize}
-          </span>
-          <button onClick={() => upEl({ fontSize: Math.min(500, selectedEl.fontSize + 1) })}
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}>
-            <Plus size={12} />
-          </button>
+              {/* Font size */}
+              <button onClick={() => upEl({ fontSize: Math.max(4, (selectedEl.fontSize ?? 48) - 1) })}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}>
+                <Minus size={12} />
+              </button>
+              <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-main)', minWidth: '28px', textAlign: 'center' }}>
+                {selectedEl.fontSize ?? 48}
+              </span>
+              <button onClick={() => upEl({ fontSize: Math.min(500, (selectedEl.fontSize ?? 48) + 1) })}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}>
+                <Plus size={12} />
+              </button>
 
-          <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
+              <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
 
-          {/* Color */}
-          <input type="color" value={selectedEl.color.startsWith('#') ? selectedEl.color : '#ffffff'}
-            onChange={(e) => upEl({ color: e.target.value })}
-            style={{ width: '22px', height: '22px', padding: '1px', cursor: 'pointer', border: '1px solid var(--border-subtle)', borderRadius: '4px', background: 'transparent' }} />
+              {/* Color */}
+              <input type="color" value={selectedEl.color?.startsWith('#') ? selectedEl.color : '#ffffff'}
+                onChange={(e) => upEl({ color: e.target.value })}
+                style={{ width: '22px', height: '22px', padding: '1px', cursor: 'pointer', border: '1px solid var(--border-subtle)', borderRadius: '4px', background: 'transparent' }} />
 
-          <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
+              <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
 
-          {/* Bold / Italic / Uppercase */}
-          {[
-            { icon: <Bold size={13}/>,   active: selectedEl.bold,      action: () => upEl({ bold: !selectedEl.bold }) },
-            { icon: <Italic size={13}/>, active: selectedEl.italic,    action: () => upEl({ italic: !selectedEl.italic }) },
-            { icon: <Type size={13}/>,   active: selectedEl.uppercase, action: () => upEl({ uppercase: !selectedEl.uppercase }) },
-          ].map((btn, i) => (
-            <button key={i} onClick={btn.action}
-              style={{ background: btn.active ? 'rgba(99,102,241,0.25)' : 'none', border: 'none',
-                color: btn.active ? '#a5b4fc' : 'var(--text-muted)', cursor: 'pointer',
-                padding: '4px 6px', borderRadius: '5px', display: 'flex', alignItems: 'center' }}>
-              {btn.icon}
-            </button>
-          ))}
+              {/* Bold / Italic / Uppercase */}
+              {[
+                { icon: <Bold size={13}/>,   active: selectedEl.bold,      action: () => upEl({ bold: !selectedEl.bold }) },
+                { icon: <Italic size={13}/>, active: selectedEl.italic,    action: () => upEl({ italic: !selectedEl.italic }) },
+                { icon: <Type size={13}/>,   active: selectedEl.uppercase, action: () => upEl({ uppercase: !selectedEl.uppercase }) },
+              ].map((btn, i) => (
+                <button key={i} onClick={btn.action}
+                  style={{ background: btn.active ? 'rgba(99,102,241,0.25)' : 'none', border: 'none',
+                    color: btn.active ? '#a5b4fc' : 'var(--text-muted)', cursor: 'pointer',
+                    padding: '4px 6px', borderRadius: '5px', display: 'flex', alignItems: 'center' }}>
+                  {btn.icon}
+                </button>
+              ))}
 
-          <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
+              <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
 
-          {/* Alignment */}
-          {([['left', <AlignLeft size={13}/>], ['center', <AlignCenter size={13}/>], ['right', <AlignRight size={13}/>]] as const).map(([a, icon]) => (
-            <button key={a} onClick={() => upEl({ textAlign: a })}
-              style={{ background: selectedEl.textAlign === a ? 'rgba(99,102,241,0.25)' : 'none', border: 'none',
-                color: selectedEl.textAlign === a ? '#a5b4fc' : 'var(--text-muted)', cursor: 'pointer',
-                padding: '4px 6px', borderRadius: '5px', display: 'flex', alignItems: 'center' }}>
-              {icon}
-            </button>
-          ))}
+              {/* Alignment */}
+              {([['left', <AlignLeft size={13}/>], ['center', <AlignCenter size={13}/>], ['right', <AlignRight size={13}/>]] as const).map(([a, icon]) => (
+                <button key={a} onClick={() => upEl({ textAlign: a })}
+                  style={{ background: selectedEl.textAlign === a ? 'rgba(99,102,241,0.25)' : 'none', border: 'none',
+                    color: selectedEl.textAlign === a ? '#a5b4fc' : 'var(--text-muted)', cursor: 'pointer',
+                    padding: '4px 6px', borderRadius: '5px', display: 'flex', alignItems: 'center' }}>
+                  {icon}
+                </button>
+              ))}
+            </>
+          )}
+
+          {/* Floating toolbar for IMAGE elements */}
+          {selectedEl.type === 'image' && (
+            <>
+              {/* Fit Mode */}
+              <div style={{ display: 'flex', gap: '2px', background: 'rgba(255,255,255,0.06)', borderRadius: '6px', padding: '2px' }}>
+                {(['contain', 'cover', 'fill'] as const).map((fit) => (
+                  <button
+                    key={fit}
+                    onClick={() => upEl({ objectFit: fit })}
+                    title={`Ajuste: ${fit}`}
+                    style={{
+                      background: (selectedEl.objectFit || 'contain') === fit ? 'rgba(99,102,241,0.4)' : 'none',
+                      border: 'none',
+                      color: (selectedEl.objectFit || 'contain') === fit ? '#ffffff' : 'var(--text-muted)',
+                      fontSize: '11px',
+                      padding: '3px 6px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      textTransform: 'capitalize',
+                      fontWeight: (selectedEl.objectFit || 'contain') === fit ? '600' : '400',
+                    }}
+                  >
+                    {fit}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
+
+              {/* Border Radius presets */}
+              <div style={{ display: 'flex', gap: '2px' }}>
+                {[
+                  { label: '0', val: 0, title: 'Bordes rectos (0px)' },
+                  { label: '8', val: 8, title: 'Bordes suaves (8px)' },
+                  { label: '20', val: 20, title: 'Bordes redondeados (20px)' },
+                  { label: '●', val: 9999, title: 'Circular' },
+                ].map((b) => (
+                  <button
+                    key={b.val}
+                    onClick={() => upEl({ borderRadius: b.val })}
+                    title={b.title}
+                    style={{
+                      background: (selectedEl.borderRadius || 0) === b.val ? 'rgba(99,102,241,0.4)' : 'none',
+                      border: 'none',
+                      color: (selectedEl.borderRadius || 0) === b.val ? '#ffffff' : 'var(--text-muted)',
+                      fontSize: '11px',
+                      padding: '3px 6px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
+
+              {/* Shadow toggle */}
+              <button
+                onClick={() => upEl({ shadow: !selectedEl.shadow })}
+                title="Sombra flotante"
+                style={{
+                  background: selectedEl.shadow ? 'rgba(99,102,241,0.35)' : 'none',
+                  border: 'none',
+                  color: selectedEl.shadow ? '#a5b4fc' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '4px 6px',
+                  borderRadius: '5px',
+                  fontSize: '11px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                }}
+              >
+                <Layers size={12} />
+                <span>Sombra</span>
+              </button>
+
+              <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
+
+              {/* Opacity */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Opac:</span>
+                {[1, 0.75, 0.5].map((op) => (
+                  <button
+                    key={op}
+                    onClick={() => upEl({ opacity: op })}
+                    style={{
+                      background: (selectedEl.opacity ?? 1) === op ? 'rgba(99,102,241,0.4)' : 'none',
+                      border: 'none',
+                      color: (selectedEl.opacity ?? 1) === op ? '#ffffff' : 'var(--text-muted)',
+                      fontSize: '10px',
+                      padding: '2px 4px',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {Math.round(op * 100)}%
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
+
+              {/* Replace Image */}
+              <button
+                onClick={() => replaceImageInputRef.current?.click()}
+                title="Cambiar imagen"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '4px 6px',
+                  borderRadius: '5px',
+                  fontSize: '11px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                }}
+              >
+                <Upload size={12} />
+                <span>Cambiar</span>
+              </button>
+            </>
+          )}
 
           <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
 
           {/* Delete */}
           <button onClick={() => onDeleteElement(selectedId!)}
+            title="Eliminar elemento"
             style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer',
               padding: '4px 6px', borderRadius: '5px', display: 'flex', alignItems: 'center' }}>
             <Trash2 size={13} />
@@ -714,7 +1000,48 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
               cursor: 'default',
             }}
             onMouseDown={() => onSelectElement(null)}
+            onDragOver={handleCanvasDragOver}
+            onDragLeave={handleCanvasDragLeave}
+            onDrop={handleCanvasDrop}
           >
+            {/* Visual drop zone overlay */}
+            {isDraggingOver && (
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 1000,
+                background: 'rgba(15, 23, 42, 0.88)',
+                backdropFilter: 'blur(6px)',
+                border: '3px dashed #818cf8',
+                borderRadius: '8px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '12px',
+                color: '#e0e7ff',
+                pointerEvents: 'none',
+              }}>
+                <div style={{
+                  padding: '16px',
+                  borderRadius: '50%',
+                  background: 'rgba(99, 102, 241, 0.25)',
+                  border: '1px solid rgba(129, 140, 248, 0.5)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Image size={36} style={{ color: '#818cf8' }} />
+                </div>
+                <div style={{ fontWeight: '600', fontSize: '15px' }}>
+                  Suelta tu imagen aquí
+                </div>
+                <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)' }}>
+                  Se agregará como elemento flotante a la diapositiva
+                </div>
+              </div>
+            )}
+
         {/* ── Background layers ── */}
         <div style={buildSlideStyle(bg)} />
 

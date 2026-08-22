@@ -6,26 +6,31 @@ export type BibleVersion = 'rvr1960' | 'nvi' | 'tla' | 'ntv' | 'lbla' | 'dhh' | 
 
 export interface CanvasElement {
   id: string;
-  type: 'text';
+  type: 'text' | 'image';
   // Position & size (% of canvas)
   x: number;      // left edge
   y: number;      // top edge
   w: number;      // width
   h: number;      // height
-  // Text content
-  text: string;
-  isReference: boolean;  // renders as a reference label (small, gold, uppercase)
+  // Image properties (when type === 'image')
+  src?: string;
+  objectFit?: 'contain' | 'cover' | 'fill';
+  borderRadius?: number;
+  shadow?: boolean;
+  // Text content (when type === 'text')
+  text?: string;
+  isReference?: boolean;  // renders as a reference label (small, gold, uppercase)
   // Typography
-  fontSize: number;
-  fontFamily: string;
-  color: string;
-  bold: boolean;
-  italic: boolean;
-  uppercase: boolean;
-  textAlign: 'left' | 'center' | 'right';
-  lineHeight: number;
+  fontSize?: number;
+  fontFamily?: string;
+  color?: string;
+  bold?: boolean;
+  italic?: boolean;
+  uppercase?: boolean;
+  textAlign?: 'left' | 'center' | 'right';
+  lineHeight?: number;
   // Effects
-  textShadow: boolean;
+  textShadow?: boolean;
   opacity: number;    // 0–1
   rotation: number;   // degrees
 }

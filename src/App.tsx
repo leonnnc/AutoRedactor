@@ -8,7 +8,7 @@ import type {
 } from './types';
 import {
   Monitor, Tablet, Smartphone, ChevronLeft, ChevronRight,
-  AlertTriangle, Plus, Trash2, ChevronUp, ChevronDown, Maximize2, Save,
+  AlertTriangle, Plus, Trash2, ChevronUp, ChevronDown, Maximize2, Save, Image,
 } from 'lucide-react';
 import {
   parseSermonIntoSlides, makeDefaultSlide, makeTextElement, DEFAULT_BACKGROUND,
@@ -177,10 +177,32 @@ export default function App() {
     setSlides(ns);
   };
 
+  const addImageInputRef = useRef<HTMLInputElement>(null);
+
   // ── Element CRUD ───────────────────────────────────────────────────────────
   const handleAddTextElement = () => {
     if (!activeSlideId) return;
     const el = makeTextElement('Nuevo texto', { y: 40, h: 20, fontSize: 48 });
+    setSlides((p) => p.map((s) => s.id === activeSlideId ? { ...s, elements: [...s.elements, el] } : s));
+    setSelectedElId(el.id);
+  };
+
+  const handleAddImageElement = (src: string, x = 32, y = 25, w = 36, h = 50) => {
+    if (!activeSlideId) return;
+    const el: CanvasElement = {
+      id: crypto.randomUUID(),
+      type: 'image',
+      src,
+      x,
+      y,
+      w,
+      h,
+      objectFit: 'contain',
+      borderRadius: 0,
+      shadow: false,
+      opacity: 1,
+      rotation: 0,
+    };
     setSlides((p) => p.map((s) => s.id === activeSlideId ? { ...s, elements: [...s.elements, el] } : s));
     setSelectedElId(el.id);
   };
@@ -319,15 +341,47 @@ export default function App() {
             <button className="slide-nav-btn" onClick={handleNextSlide} disabled={activeSlideIndex >= slides.length-1}><ChevronRight size={16}/></button>
           </div>
 
-          {/* Add text element button */}
-          <button
-            className="btn btn-secondary"
-            style={{ fontSize: '12px', padding: '5px 14px', borderRadius: '7px' }}
-            onClick={handleAddTextElement}
-            disabled={!activeSlide}
-          >
-            + Texto
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {/* Add text element button */}
+            <button
+              className="btn btn-secondary"
+              style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '7px' }}
+              onClick={handleAddTextElement}
+              disabled={!activeSlide}
+            >
+              + Texto
+            </button>
+
+            {/* Add image element button */}
+            <input
+              type="file"
+              ref={addImageInputRef}
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = (loadEvt) => {
+                    const src = loadEvt.target?.result as string;
+                    if (src) handleAddImageElement(src);
+                  };
+                  reader.readAsDataURL(file);
+                }
+                e.target.value = '';
+              }}
+            />
+            <button
+              className="btn btn-secondary"
+              style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '7px', display: 'flex', alignItems: 'center', gap: '4px' }}
+              onClick={() => addImageInputRef.current?.click()}
+              disabled={!activeSlide}
+              title="Añadir imagen a la diapositiva"
+            >
+              <Image size={13} />
+              <span>+ Imagen</span>
+            </button>
+          </div>
 
           {/* Save status indicator */}
           <div
@@ -359,6 +413,7 @@ export default function App() {
           onUpdateElement={handleUpdateElement}
           onDeleteElement={handleDeleteElement}
           onUpdateBackground={handleUpdateBackground}
+          onAddImageElement={handleAddImageElement}
         />
 
         {/* Filmstrip */}
@@ -376,7 +431,9 @@ export default function App() {
                 style={{ flexDirection: 'row', alignItems: 'center', width: '160px', height: '56px', padding: '8px 10px', flexShrink: 0 }}>
                 <div className="slide-thumb-index">{idx + 1}</div>
                 <div className="slide-thumb-info">
-                  <span className="slide-thumb-text">{slide.elements[0]?.text || '(Vacía)'}</span>
+                  <span className="slide-thumb-text">
+                    {slide.elements.find((e) => e.type === 'text')?.text || (slide.elements.some((e) => e.type === 'image') ? '🖼️ Imagen' : '(Vacía)')}
+                  </span>
                   {slide.isVerse && slide.elements[1] && (
                     <span className="slide-thumb-ref">{slide.elements[1].text}</span>
                   )}
